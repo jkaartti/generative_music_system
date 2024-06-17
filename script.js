@@ -1,13 +1,28 @@
+// Set up recording
+const dest = Tone.context.createMediaStreamDestination()
+const recorder = new MediaRecorder(dest.stream)
+const audioChuncks = []
+recorder.ondataavailable = evt => audioChuncks.push(evt.data)
+recorder.onstop = evt => {
+  let blob = new Blob(audioChuncks, { type: 'audio/wav; codecs=opus' })
+  const url = URL.createObjectURL(blob)
+  const audio = document.getElementById('audioPlayer')
+  audio.src = url
+  const downloadLink = document.getElementById('downloadLink')
+  downloadLink.href = url
+  downloadLink.download = new Date().toISOString() + '.wav'
+}
+
 // Magenta stuff -----
 
 const TEMPERATURE = 0.1
 const RNN_CHECKPOINT = 'https://storage.googleapis.com/magentadata/js/checkpoints/music_rnn/melody_rnn'
-// const RNN_CHECKPOINT = './lookback_rnn.mag'
 const musicRnn = new mm.MusicRNN(RNN_CHECKPOINT)
 
 // MASTER ------------
 
 const master = new Tone.Volume().toDestination()
+master.connect(dest)
 
 // BASS --------------
 const bassSynth = new Tone.Synth().connect(master)
@@ -70,13 +85,13 @@ const melody = new Tone.Sampler({
   release: 1,
 	baseUrl: './Digibell/',
 })
-digibell.volume.value = -18
+melody.volume.value = -18
 
 const melodyMeter = new Tone.Meter()
-digibell.connect(digibellMeter)
+melody.connect(melodyMeter)
 
 const melodyCompressor = new Tone.Compressor(-24, 6).connect(master)
-digibell.connect(digibellCompressor)
+melody.connect(melodyCompressor)
 // -------------------
 
 // DRUMS -------------
@@ -262,11 +277,6 @@ const hihatOpenProbabilities = {
   duration: '1m'
 }
 
-/*const demoSnarePattern = [
-  '0:1',
-  '0:3',
-]*/
-
 const randomElement = (array) => {
   return array[Math.floor(Math.random() * array.length)]
 }
@@ -294,7 +304,7 @@ const createRandomPattern = (pitches, timeValues) => {
 const nextRandomMelodyNoteIndex = (pitches, lastIndex, maxChange) => {
   let newIndex = -1
   
-  while (newIndex < 0 || pitches.length < newIndex) {
+  while (newIndex < 0 || pitches.length <= newIndex) {
     let change = 2 * Math.floor(Math.random() * maxChange) - maxChange
     newIndex = lastIndex + change
   }
@@ -486,13 +496,20 @@ const playABACMelody = (melody, startTime, endTime) => {
 }
 
 const toggleElementVisibility = (element) => {
-  console.log(element.style.display)
-  element.style.display = element.style.display !== 'none' ? 'none' : 'inline-flex'
+  const currentDisplay = element.style.display
+  if (!currentDisplay || currentDisplay === 'none') {
+    element.style.display = 'inline-flex'
+  } else {
+    element.style.display = 'none'
+  }
+
 }
 
-const toggleButtonVisibilities = () => {
+const togglePlayStopVisibilities = () => {
   toggleElementVisibility(document.getElementById('playButton'))
-  toggleElementVisibility(document.getElementById('pauseButton'))
+  toggleElementVisibility(document.getElementById('stopButton'))
+  toggleElementVisibility(document.getElementById('audioPlayer'))
+  toggleElementVisibility(document.getElementById('downloadLink'))
 }
 
 const toggleMute = () => {
@@ -502,15 +519,13 @@ const toggleMute = () => {
 // ========================= PLAY =========================
 
 const play = async () => {
+  if (master.muted) toggleMute()
+
+  recorder.start()
+
   //toggleButtonVisibilities()
   document.getElementById('playButton').style.display = 'none'
-  document.getElementById('pauseButton').style.display = 'inline-flex'
-
-  if (Tone.Transport.state === 'paused') {
-    toggleMute()
-    Tone.Transport.start()
-    return
-  }
+  document.getElementById('stopButton').style.display = 'inline-flex'
 
   await Tone.start()
 
@@ -671,20 +686,25 @@ const play = async () => {
 
     const bassVolume = bassSynthMeter.getValue()
     const blue = bassVolume > -50 ? bassVolume + 50 : 10
-
+ 
     root.style.background = `radial-gradient(circle, rgb(${red},${green},${blue}) 0%, rgb(10,10,10) 100%)`
   }, 100)
 
   Tone.Transport.start()
 }
 
-const pause = () => {
-  toggleButtonVisibilities()
-  Tone.Transport.pause()
+const stop = () => {
+  togglePlayStopVisibilities()
   toggleMute()
-  //Tone.Transport.cancel()
+  Tone.Transport.stop()
+  Tone.Transport.cancel()
+  recorder.stop()
 }
 
 document.getElementById('playButton').addEventListener('click', async () => {
-    play()
+  play()
+})
+
+document.getElementById('stopButton').addEventListener('click', async () => {
+  stop()
 })

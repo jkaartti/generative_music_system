@@ -12,6 +12,22 @@ body {
   width: 100vw;
   height: 100vh;
   background-color: rgb(10,10,10);
+  align-content: start;
+}
+
+.container {
+  background-color: rgba(10,10,10,0.5);
+}
+
+audio {
+  margin-left: 1em;
+  margin-right: 1em;
+  display: none;
+}
+
+a {
+  color: #bbb;
+  display: none;
 }
 
 button {
@@ -27,12 +43,13 @@ button {
   align-items: center;
   display: inline-flex;
   text-align: center;
+  vertical-align: top;
 }
 
 button:hover {
   background-color: rgba(50,50,50,1);
 }
 
-#pauseButton {
+#stopButton {
   display: none;
 }

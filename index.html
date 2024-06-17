@@ -8,11 +8,15 @@
 </head>
 <body>
   <div id="root">
-    <button id="playButton">Play</button>
-    <button id="pauseButton">Pause</button>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.42/Tone.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@magenta/music@1.23.1/dist/magentamusic.min.js"></script>
-    <script src="script.js"></script>
+    <div class="container">
+      <button id="playButton">Play</button>
+      <button id="stopButton">Stop</button>
+      <audio controls id="audioPlayer"></audio>
+      <a id="downloadLink">Download the last version</a>
+    </div>
   </div>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.42/Tone.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@magenta/music@1.23.1/dist/magentamusic.min.js"></script>
+  <script src="script.js"></script>
 </body>
 </html>
