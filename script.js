@@ -33,34 +33,34 @@ bassSynth.connect(bassSynthMeter)
 // -------------------
 
 // DIGIBELL ----------
-const digibell = new Tone.Sampler({
-  urls: {
-    'A2': 'Digibell_A2.mp3',
-    'B2': 'Digibell_B2.mp3',
-    'D3': 'Digibell_D3.mp3',
-    'E3': 'Digibell_E3.mp3',
-    'G3': 'Digibell_G3.mp3',
-    'A3': 'Digibell_A3.mp3',
-    'B3': 'Digibell_B3.mp3',
-    'D4': 'Digibell_D4.mp3',
-    'E4': 'Digibell_E4.mp3',
-    'G4': 'Digibell_G4.mp3',
-    'A4': 'Digibell_A4.mp3',
-    'B4': 'Digibell_B4.mp3',
-    'D5': 'Digibell_D5.mp3',
-    'E5': 'Digibell_E5.mp3',
-    'G5': 'Digibell_G5.mp3',
-  },
-  release: 1,
-	baseUrl: './Digibell/',
-})
-digibell.volume.value = -18
+// const digibell = new Tone.Sampler({
+//   urls: {
+//     'A2': 'Digibell_A2.mp3',
+//     'B2': 'Digibell_B2.mp3',
+//     'D3': 'Digibell_D3.mp3',
+//     'E3': 'Digibell_E3.mp3',
+//     'G3': 'Digibell_G3.mp3',
+//     'A3': 'Digibell_A3.mp3',
+//     'B3': 'Digibell_B3.mp3',
+//     'D4': 'Digibell_D4.mp3',
+//     'E4': 'Digibell_E4.mp3',
+//     'G4': 'Digibell_G4.mp3',
+//     'A4': 'Digibell_A4.mp3',
+//     'B4': 'Digibell_B4.mp3',
+//     'D5': 'Digibell_D5.mp3',
+//     'E5': 'Digibell_E5.mp3',
+//     'G5': 'Digibell_G5.mp3',
+//   },
+//   release: 1,
+// 	baseUrl: './Digibell/',
+// })
+// digibell.volume.value = -18
 
-const digibellMeter = new Tone.Meter()
-digibell.connect(digibellMeter)
+// const digibellMeter = new Tone.Meter()
+// digibell.connect(digibellMeter)
 
-const digibellCompressor = new Tone.Compressor(-24, 6).connect(master)
-digibell.connect(digibellCompressor)
+// const digibellCompressor = new Tone.Compressor(-24, 6).connect(master)
+// digibell.connect(digibellCompressor)
 // -------------------
 
 // MELODY ------------
@@ -97,10 +97,12 @@ melodySynth.connect(melodyCompressor)
 // DRUMS -------------
 const drumSampler = new Tone.Sampler({
   urls: {
-    'C2':  'kick.wav',
-    'D2':  'snare.wav',
+    'C2' : 'kick.wav',
+    'D2' : 'snare.wav',
     'F#2': 'hihatClosed.wav',
     'A#2': 'hihatOpen.wav',
+    'C#2': 'crash.wav',
+    'A2' : 'reverse_crash.wav',
   },
   release: 1,
 	baseUrl: './drs/',
@@ -114,7 +116,7 @@ drumSampler.connect(drumMeter)
 
 // REVERB ------------
 const rev = new Tone.Reverb(5).connect(master)
-digibell.connect(rev)
+// digibell.connect(rev)
 melodySynth.connect(rev)
 const drumRevSend = new Tone.Volume(-18).connect(rev)
 drumSampler.connect(drumRevSend)
@@ -365,7 +367,6 @@ const convertFromMagenta = (magentaPattern) => {
   return notePattern
 }
 
-// TODO: make sure the melody is long enough, at least not an empty array
 const generateMagentaMelody = async (melodyPattern, minSumOfNotes = 0) => {
   let sumOfNotes = -1
   let temp = TEMPERATURE
@@ -419,7 +420,6 @@ const varyDrumPattern = (originalPattern, probabilites, strength) => {
       }
     }
     else if (Math.random() < p.probability * strength) {
-      //console.log(p.probability * strength)
       newPattern.push(p.beat)
     }
   })
@@ -516,9 +516,56 @@ const play = async () => {
 
   await Tone.start()
 
+  // Structure --------------------------------------
+
+  const partStartMeasures = {
+    'A1' : '0m',  // original
+    'B1' : '16m', // original
+    'A2' : '32m', // original
+    'B2' : '40m', // original
+    'A3' : '48m', // magenta
+    'B3' : '56m', // magenta
+    'A4' : '64m', // magenta
+    'B4' : '68m', // magenta
+    'A5' : '72m', // original
+    'END': '76m',
+  }
+
+  const crashHits = ['A2', 'A3', 'A5'].map(key => partStartMeasures[key])
+
+    // Melody -----------------------------------------
+
+  const melodyA = []
+  melodyA[0] = createRandomMelody(melodyPitches, melodyTimeValues)
+  melodyA[1] = createRandomMelody(melodyPitches, melodyTimeValues)
+  melodyA[2] = createRandomMelody(melodyPitches, melodyTimeValues)
+
+  const melodyB = []
+  melodyB[0] = createRandomMelody(melodyPitches, melodyTimeValues)
+  melodyB[1] = createRandomMelody(melodyPitches, melodyTimeValues)
+  melodyB[2] = createRandomMelody(melodyPitches, melodyTimeValues)
+
+  const concatenatedMelodyA = concatenateToABACMelody(melodyA)
+  const concatenatedMelodyB = concatenateToABACMelody(melodyB)
+  
+  const generatedMelodyA = await generateMagentaMelody(concatenatedMelodyA, 10)
+  const generatedMelodyB = await generateMagentaMelody(concatenatedMelodyB, 10)
+
+  scheduleMelody(concatenatedMelodyA, partStartMeasures['A1'], partStartMeasures['B1'] )
+  scheduleMelody(concatenatedMelodyB, partStartMeasures['B1'], partStartMeasures['A2'] )
+  scheduleMelody(concatenatedMelodyA, partStartMeasures['A2'], partStartMeasures['B2'] )
+  scheduleMelody(concatenatedMelodyB, partStartMeasures['B2'], partStartMeasures['A3'] )
+  scheduleMelody(generatedMelodyA,    partStartMeasures['A3'], partStartMeasures['B3'] )
+  scheduleMelody(generatedMelodyB,    partStartMeasures['B3'], partStartMeasures['A4'] )
+  scheduleMelody(generatedMelodyA,    partStartMeasures['A4'], partStartMeasures['B4'] )
+  scheduleMelody(generatedMelodyB,    partStartMeasures['B4'], partStartMeasures['A5'] )
+  scheduleMelody(concatenatedMelodyA, partStartMeasures['A5'], partStartMeasures['END'])
+
   // Bass -------------------------------------------
 
   const bassNotes = shuffle(['E2', 'G2', 'C2', 'A1', 'B1'])
+  const bassStartTime = Tone.Time('8m').toSeconds()
+  const bassDuration = Tone.Time(partStartMeasures['A5']).toSeconds() - bassStartTime
   
   Tone.Transport.scheduleRepeat((time) => {
     bassSynth.triggerAttackRelease(bassNotes[0], '1m')
@@ -529,7 +576,7 @@ const play = async () => {
     bassSynth.triggerAttackRelease(bassNotes[1], '1m', time + Tone.Transport.toSeconds('5m'))
     bassSynth.triggerAttackRelease(bassNotes[2], '1m', time + Tone.Transport.toSeconds('6m'))
     bassSynth.triggerAttackRelease(bassNotes[4], '1m', time + Tone.Transport.toSeconds('7m'))
-  }, '8m', '8m', '64m')
+  }, '8m', bassStartTime, bassDuration)
 
   bassVolume.mute = true
   Tone.Transport.schedule(time => {bassVolume.mute = false}, '8m')
@@ -574,46 +621,14 @@ const play = async () => {
     } 
   }, Tone.Time(kickProbabilities.duration) * 2, Tone.Time(kickProbabilities.duration) + Tone.Time('16m'), '56m')
 
-  // Melody -----------------------------------------
-
-  const partStartMeasures = {
-    'A1' : '0m',  // original
-    'B1' : '16m', // original
-    'A2' : '32m', // original
-    'B2' : '40m', // original
-    'A3' : '48m', // magenta
-    'B3' : '56m', // magenta
-    'A4' : '64m', // magenta
-    'B4' : '68m', // magenta
-    'A5' : '72m', // original
-    'END': '76m',
-  }
-
-  const melodyA = []
-  melodyA[0] = createRandomMelody(melodyPitches, melodyTimeValues)
-  melodyA[1] = createRandomMelody(melodyPitches, melodyTimeValues)
-  melodyA[2] = createRandomMelody(melodyPitches, melodyTimeValues)
-
-  const melodyB = []
-  melodyB[0] = createRandomMelody(melodyPitches, melodyTimeValues)
-  melodyB[1] = createRandomMelody(melodyPitches, melodyTimeValues)
-  melodyB[2] = createRandomMelody(melodyPitches, melodyTimeValues)
-
-  const concatenatedMelodyA = concatenateToABACMelody(melodyA)
-  const concatenatedMelodyB = concatenateToABACMelody(melodyB)
-  
-  const generatedMelodyA = await generateMagentaMelody(concatenatedMelodyA, 10)
-  const generatedMelodyB = await generateMagentaMelody(concatenatedMelodyB, 10)
-
-  scheduleMelody(concatenatedMelodyA, partStartMeasures['A1'], partStartMeasures['B1'] )
-  scheduleMelody(concatenatedMelodyB, partStartMeasures['B1'], partStartMeasures['A2'] )
-  scheduleMelody(concatenatedMelodyA, partStartMeasures['A2'], partStartMeasures['B2'] )
-  scheduleMelody(concatenatedMelodyB, partStartMeasures['B2'], partStartMeasures['A3'] )
-  scheduleMelody(generatedMelodyA,    partStartMeasures['A3'], partStartMeasures['B3'] )
-  scheduleMelody(generatedMelodyB,    partStartMeasures['B3'], partStartMeasures['A4'] )
-  scheduleMelody(generatedMelodyA,    partStartMeasures['A4'], partStartMeasures['B4'] )
-  scheduleMelody(generatedMelodyB,    partStartMeasures['B4'], partStartMeasures['A5'] )
-  scheduleMelody(concatenatedMelodyA, partStartMeasures['A5'], partStartMeasures['END'])
+  crashHits.forEach(hitMeasure => {
+    Tone.Transport.schedule(time => {
+      drumSampler.triggerAttack('C#2', time, 0.3)
+    }, hitMeasure)
+    Tone.Transport.schedule(time => {
+      drumSampler.triggerAttack('A2', time, 0.3)
+    }, Tone.Time(hitMeasure).toSeconds() - Tone.Time('2m').toSeconds())
+  })
 
   // Cosmetics --------------------------------------
 
