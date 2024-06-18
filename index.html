@@ -8,8 +8,13 @@
 </head>
 <body>
   <div id="root">
-    <button id="playButton">Play</button>
-    <button id="stopButton">Stop</button>
+    <div class="header">
+      <button id="playButton">Generate and play</button>
+      <button id="stopButton">Stop</button>
+      <div class="slidercontainer">
+        Volume: <input type="range" min="0" max="100" value="100" class="slider" id="volumeSlider">
+      </div>
+    </div>
     <div class="modal" id="downloadModal">
       <div class="modal-header">
         Want to listen again?

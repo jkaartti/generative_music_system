@@ -1,6 +1,6 @@
 // Set up recording
-const dest = Tone.context.createMediaStreamDestination()
-const recorder = new MediaRecorder(dest.stream)
+const recordingDestination = Tone.context.createMediaStreamDestination()
+const recorder = new MediaRecorder(recordingDestination.stream)
 const audioChuncks = []
 recorder.ondataavailable = evt => audioChuncks.push(evt.data)
 recorder.onstop = evt => {
@@ -20,8 +20,10 @@ const RNN_CHECKPOINT = 'https://storage.googleapis.com/magentadata/js/checkpoint
 const musicRnn = new mm.MusicRNN(RNN_CHECKPOINT)
 
 // MASTER ------------
-const master = new Tone.Volume().toDestination()
-master.connect(dest)
+const monitor = new Tone.Volume().toDestination()
+const master = new Tone.Volume()
+master.connect(monitor)
+master.connect(recordingDestination)
 // -------------------
 
 // BASS --------------
@@ -370,19 +372,18 @@ const convertFromMagenta = (magentaPattern) => {
 
 const generateMagentaMelody = async (melodyPattern, minSumOfNotes = 0) => {
   let sumOfNotes = -1
-  let temp = TEMPERATURE
+  let temp = 0
   let sequence
   let counter = 0
   while (sumOfNotes < minSumOfNotes) {
+    temp += 0.1
     const magentaPattern = convertToMagenta(melodyPattern)
     const melodyToQuantize = {notes: magentaPattern, totalTime: 4}
     const qns = mm.sequences.quantizeNoteSequence(melodyToQuantize, 4)
     sequence = await musicRnn.continueSequence(qns, 64, temp)
     sumOfNotes = sequence.notes.length
-    temp += 0.1
     counter++
   }
-  temp -= 0.1
   console.log(`generated magenta melody on try ${counter} with temperature ${temp}`)
   return convertFromMagenta(sequence.notes)
 }
@@ -432,14 +433,14 @@ const removeOverlappingBeats = (originalPattern, comparisonPattern) => {
   return originalPattern.filter(p => !comparisonPattern.includes(p))
 }
 
-const playDrumPattern = (pattern, time, note, instrument, comparisonPattern = null) => {
+const playDrumPattern = (pattern, time, note, instrument, chokePattern = null) => {
   pattern.forEach(beat => {
        
     //choke hihat
-    if (comparisonPattern) {
-      for (let i = comparisonPattern.length - 1; i >= 0; i--)
+    if (chokePattern) {
+      for (let i = chokePattern.length - 1; i >= 0; i--)
         {
-          if (Tone.Time(comparisonPattern[i]) < Tone.Time(beat)) {
+          if (Tone.Time(chokePattern[i]) < Tone.Time(beat)) {
             instrument.triggerRelease('A#2', time + Tone.Time(beat))
             i = 0;
           }
@@ -644,7 +645,7 @@ const play = async () => {
     root.style.background = master.mute ? 'rgb(10,10,10)' : `radial-gradient(circle, rgb(${red},${green},${blue}) 0%, rgb(10,10,10) 100%)`
   }, 100)
 
-  Tone.Transport.schedule(time => {
+  Tone.Draw.schedule(time => {
     stop()
   }, Tone.Time(partStartMeasures['END']).toSeconds() + rev.decay)
 
@@ -674,6 +675,14 @@ const closeModal = () => {
   const audioPlayer = document.getElementById('audioPlayer')
   audioPlayer.pause()
 }
+
+const volumeSlider = document.getElementById("volumeSlider")
+const updateMonitorVolume = () => {
+  const gain = volumeSlider.value / 100
+  const decibels = Tone.gainToDb(gain)
+  monitor.volume.value = decibels
+}
+volumeSlider.addEventListener('input', updateMonitorVolume)
 
 document.getElementById('playButton').addEventListener('click', async () => {
   play()
