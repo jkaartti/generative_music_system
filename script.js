@@ -25,7 +25,8 @@ const master = new Tone.Volume().toDestination()
 master.connect(dest)
 
 // BASS --------------
-const bassSynth = new Tone.Synth().connect(master)
+const bassVolume = new Tone.Volume().connect(master) // For muting
+const bassSynth = new Tone.Synth().connect(bassVolume)
 bassSynth.volume.value = -3
 
 const bassSynthMeter = new Tone.Meter()
@@ -115,7 +116,8 @@ drumSampler.connect(drumMeter)
 // REVERB ------------
 const rev = new Tone.Reverb(5).connect(master)
 digibell.connect(rev)
-const drumRevSend = new Tone.Volume(-15).connect(rev)
+melody.connect(rev)
+const drumRevSend = new Tone.Volume(-18).connect(rev)
 drumSampler.connect(drumRevSend)
 // -------------------
 
@@ -365,11 +367,22 @@ const convertFromMagenta = (magentaPattern) => {
 }
 
 // TODO: make sure the melody is long enough, at least not an empty array
-const generateMagentaMelody = async (melodyPattern) => {
-  const magentaPattern = convertToMagenta(melodyPattern)
-  const melodyToQuantize = {notes: magentaPattern, totalTime: 4}
-  const qns = mm.sequences.quantizeNoteSequence(melodyToQuantize, 4)
-  const sequence = await musicRnn.continueSequence(qns, 64, TEMPERATURE)
+const generateMagentaMelody = async (melodyPattern, minSumOfNotes = 0) => {
+  let sumOfNotes = -1
+  let temp = TEMPERATURE
+  let sequence
+  let counter = 0
+  while (sumOfNotes < minSumOfNotes) {
+    const magentaPattern = convertToMagenta(melodyPattern)
+    const melodyToQuantize = {notes: magentaPattern, totalTime: 4}
+    const qns = mm.sequences.quantizeNoteSequence(melodyToQuantize, 4)
+    sequence = await musicRnn.continueSequence(qns, 64, temp)
+    sumOfNotes = sequence.notes.length
+    temp += 0.1
+    counter++
+  }
+  temp -= 0.1
+  console.log(`generated magenta melody on try ${counter} with temperature ${temp}`)
   return convertFromMagenta(sequence.notes)
 }
 
@@ -455,8 +468,8 @@ const concatenateToABACMelody = (melody) => {
   addToConcatenatedWithOffset(concatenatedMelody, melody[0], 4)
   addToConcatenatedWithOffset(concatenatedMelody, melody[2], 6)
   
-  console.log('concatenated:')
-  console.log(concatenatedMelody)
+  // console.log('concatenated:')
+  // console.log(concatenatedMelody)
 
   return concatenatedMelody
 }
@@ -516,16 +529,18 @@ const toggleMute = () => {
   master.mute = !master.mute
 }
 
-// ========================= PLAY =========================
+// ================================================== PLAY ==================================================
 
 const play = async () => {
-  if (master.muted) toggleMute()
-
+  master.mute = false
   recorder.start()
+  
+  rev.decay = 5
 
-  //toggleButtonVisibilities()
   document.getElementById('playButton').style.display = 'none'
   document.getElementById('stopButton').style.display = 'inline-flex'
+  document.getElementById('audioPlayer').style.display = 'none'
+  document.getElementById('downloadLink').style.display = 'none'
 
   await Tone.start()
 
@@ -562,8 +577,9 @@ const play = async () => {
     bassSynth.triggerAttackRelease(bassNotes[2], '1m', time + Tone.Transport.toSeconds('6m'))
     bassSynth.triggerAttackRelease(bassNotes[4], '1m', time + Tone.Transport.toSeconds('7m'))
   }, '8m', '8m')
-  
-  // bassSynth.volume.rampTo(0, 30, 40)
+
+  bassVolume.mute = true
+  Tone.Transport.schedule(time => {bassVolume.mute = false}, '8m')
 
   // Drums ------------------------------------------
 
@@ -578,7 +594,6 @@ const play = async () => {
   
   const hihatClosedPattern = removeOverlappingBeats(constructDrumPattern(hihatClosedProbabilities), hihatOpenPattern)
   const variedHihatClosedPattern = removeOverlappingBeats(varyDrumPattern(hihatClosedPattern, hihatClosedProbabilities, 0.5), variedHihatOpenPattern)
-
   
   Tone.Transport.scheduleRepeat(time => {
     playDrumPattern(kickPattern, time, 'C2', drumSampler)
@@ -606,12 +621,6 @@ const play = async () => {
     } 
   }, Tone.Time(kickProbabilities.duration) * 2, Tone.Time(kickProbabilities.duration) + Tone.Time('16m'))
 
-  // Swing ------------------------------------------
-
-  //const swingValue = Math.random()
-  //Tone.Transport.swing = swingValue
-  //console.log('swing:', swingValue)
-
   // Melody -----------------------------------------
 
   const partStartMeasures = {
@@ -637,30 +646,33 @@ const play = async () => {
   // playABACMelody(melodyA, '16m', '20m')
 
   const concatenatedMelodyA = concatenateToABACMelody(melodyA)
+  console.log("created melody:")
+  console.log(concatenatedMelodyA)
+
   Tone.Transport.scheduleRepeat((time) => {
     concatenatedMelodyA.forEach(note => {
-      digibell.triggerAttack(note.pitch, Tone.Transport.toSeconds(note.startTime) + time)
+      melody.triggerAttack(note.pitch, Tone.Transport.toSeconds(note.startTime) + time)
     })
   }, '16m', '0m')
   Tone.Transport.scheduleRepeat((time) => {
     concatenatedMelodyA.forEach(note => {
-      digibell.triggerAttack(note.pitch, Tone.Transport.toSeconds(note.startTime) + time)
+      melody.triggerAttack(note.pitch, Tone.Transport.toSeconds(note.startTime) + time)
     })
   }, '16m', '4m')
   
-  const generatedMelody = await generateMagentaMelody(concatenatedMelodyA)
+  const generatedMelody = await generateMagentaMelody(concatenatedMelodyA, 10)
   console.log('magenta melody:')
   console.log(generatedMelody)
 
   Tone.Transport.scheduleRepeat((time) => {
     generatedMelody.forEach(note => {
-      digibell.triggerAttack(note.pitch, Tone.Transport.toSeconds(note.startTime) + time)
+      melody.triggerAttack(note.pitch, Tone.Transport.toSeconds(note.startTime) + time)
     })
   }, '16m', '8m')
   
   Tone.Transport.scheduleRepeat((time) => {
     generatedMelody.forEach(note => {
-      digibell.triggerAttack(note.pitch, Tone.Transport.toSeconds(note.startTime) + time)
+      melody.triggerAttack(note.pitch, Tone.Transport.toSeconds(note.startTime) + time)
     })
   }, '16m', '12m')
 
@@ -678,8 +690,8 @@ const play = async () => {
   const root = document.getElementById('root')
 
   setInterval(() => {
-    const digibellVolume = digibellMeter.getValue()
-    const red = digibellVolume > -70 ? digibellVolume + 70 : 10
+    const melodyVolume = melodyMeter.getValue()
+    const red = melodyVolume > -70 ? melodyVolume + 70 : 10
     
     const drumVolume = drumMeter.getValue()
     const green = drumVolume > -50 ? drumVolume + 50 : 10
@@ -698,13 +710,35 @@ const stop = () => {
   toggleMute()
   Tone.Transport.stop()
   Tone.Transport.cancel()
+  melody.releaseAll()
+  //bassSynth.releaseAll()
+  drumSampler.releaseAll()
+  rev.decay = 0.5
   recorder.stop()
+}
+
+const openModal = () => {
+  const modal = document.getElementById('downloadModal')
+  modal.classList.add('active')
+}
+
+const closeModal = () => {
+  const modal = document.getElementById('downloadModal')
+  modal.classList.remove('active')
+  const audioPlayer = document.getElementById('audioPlayer')
+  audioPlayer.pause()
 }
 
 document.getElementById('playButton').addEventListener('click', async () => {
   play()
+  closeModal()
 })
 
 document.getElementById('stopButton').addEventListener('click', async () => {
   stop()
+  openModal()
+})
+
+document.getElementById('closeButton').addEventListener('click', async () => {
+  closeModal()
 })

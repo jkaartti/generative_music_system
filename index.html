@@ -11,8 +11,16 @@
     <div class="container">
       <button id="playButton">Play</button>
       <button id="stopButton">Stop</button>
-      <audio controls id="audioPlayer"></audio>
-      <a id="downloadLink">Download the last version</a>
+    </div>
+    <div class="modal" id="downloadModal">
+      <div class="modal-header">
+        Want to listen again?
+        <button id="closeButton" class="close-button">&times;</button>
+      </div>
+      <div class="modal-body">
+        <audio controls id="audioPlayer"></audio>
+        <a id="downloadLink">Download</a>
+      </div>
     </div>
   </div>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.42/Tone.min.js"></script>

@@ -22,15 +22,14 @@ body {
 audio {
   margin-left: 1em;
   margin-right: 1em;
-  display: none;
 }
 
-a {
+a#downloadLink {
   color: #bbb;
-  display: none;
+  display: block;
 }
 
-button {
+#playButton, #stopButton {
   padding: 1em;
   min-width: 3vw;
   height: 6vh;
@@ -46,10 +45,55 @@ button {
   vertical-align: top;
 }
 
-button:hover {
+#playButton:hover, #stopButton.hover {
   background-color: rgba(50,50,50,1);
 }
 
 #stopButton {
   display: none;
+}
+
+.modal {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) scale(0);
+  transition: 200ms ease-in-out;
+  border: 1px solid #bbb;
+  border-radius: 10px;
+  background-color: rgba(10,10,10,0.5);
+}
+
+.modal.active {
+  transform: translate(-50%, -50%) scale(1);
+}
+
+.modal-header {
+  padding: 10px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid #bbb;
+  font-size: 1.25rem;
+  font-weight: bold;
+}
+
+.close-button {
+  cursor: pointer;
+  border: none;
+  outline: none;
+  background: none;
+  font-size: 1.5rem;
+  font-weight: bold;
+  color: #bbb
+}
+
+.modal-body {
+  padding: 10px;
+  text-align: center;
+  float: left;
+}
+
+.modal-body a, .modal-body audio {
+  display: block;
 }
