@@ -45,7 +45,7 @@ a#downloadLink {
   vertical-align: top;
 }
 
-#playButton:hover, #stopButton.hover {
+#playButton:hover, #stopButton.hover, .modal-body a:hover, .close-button:hover {
   background-color: rgba(50,50,50,1);
 }
 
@@ -85,7 +85,7 @@ a#downloadLink {
   background: none;
   font-size: 1.5rem;
   font-weight: bold;
-  color: #bbb
+  color: #bbb;
 }
 
 .modal-body {
@@ -94,6 +94,13 @@ a#downloadLink {
   float: left;
 }
 
-.modal-body a, .modal-body audio {
+.modal-body a {
   display: block;
+  margin-top: 10px;
+  margin-bottom: 8px;
+}
+
+.modal-body audio {
+  display: block;
+  margin-top: 5px;
 }
