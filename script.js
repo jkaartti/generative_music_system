@@ -15,7 +15,6 @@ recorder.onstop = evt => {
 }
 
 // Magenta stuff
-const TEMPERATURE = 0.1
 const RNN_CHECKPOINT = 'https://storage.googleapis.com/magentadata/js/checkpoints/music_rnn/melody_rnn'
 const musicRnn = new mm.MusicRNN(RNN_CHECKPOINT)
 
@@ -504,15 +503,18 @@ const toggleMute = () => {
 // ================================================== PLAY ==================================================
 
 const play = async () => {
-  master.mute = false
   recorder.start()
   
   rev.decay = 5
-
+  
   document.getElementById('playButton').style.display = 'none'
   document.getElementById('stopButton').style.display = 'inline-flex'
-
+  
   await Tone.start()
+  
+  bassVolume.mute = true // Workaround for lingering bass notes from previous iteration
+  master.mute = false
+  Tone.Transport.schedule(time => {bassVolume.mute = false}, Tone.Time('8m').toSeconds() - 0.5)
 
   // Structure --------------------------------------
 
@@ -531,7 +533,20 @@ const play = async () => {
 
   const crashHits = ['A2', 'A3', 'A5'].map(key => partStartMeasures[key])
 
-    // Melody -----------------------------------------
+  const bassStartTime = Tone.Time('8m').toSeconds()
+  const bassDuration = Tone.Time(partStartMeasures['A5']).toSeconds() - bassStartTime
+
+  const kickStartTime = Tone.Time('16m').toSeconds()
+  const hihatStartTime = Tone.Time('24m').toSeconds()
+  const snareStartTime = Tone.Time('32m').toSeconds()
+  const variedSnareStartTime = Tone.Time('40m').toSeconds()
+
+  const kickDuration = Tone.Time(partStartMeasures['A5']).toSeconds() - kickStartTime
+  const hihatDuration = Tone.Time(partStartMeasures['A5']).toSeconds() - hihatStartTime
+  const snareDuration = Tone.Time(partStartMeasures['A5']).toSeconds() - snareStartTime
+  const variedSnareDuration = Tone.Time(partStartMeasures['A5']).toSeconds() - variedSnareStartTime
+
+  // Melody -----------------------------------------
 
   const melodyA = []
   melodyA[0] = createRandomMelody(melodyPitches, melodyTimeValues)
@@ -562,11 +577,9 @@ const play = async () => {
   // Bass -------------------------------------------
 
   const bassNotes = shuffle(['E2', 'G2', 'C2', 'A1', 'B1'])
-  const bassStartTime = Tone.Time('8m').toSeconds()
-  const bassDuration = Tone.Time(partStartMeasures['A5']).toSeconds() - bassStartTime
   
   Tone.Transport.scheduleRepeat((time) => {
-    bassSynth.triggerAttackRelease(bassNotes[0], '1m')
+    bassSynth.triggerAttackRelease(bassNotes[0], '1m', time)
     bassSynth.triggerAttackRelease(bassNotes[1], '1m', time + Tone.Transport.toSeconds('1m'))
     bassSynth.triggerAttackRelease(bassNotes[2], '1m', time + Tone.Transport.toSeconds('2m'))
     bassSynth.triggerAttackRelease(bassNotes[3], '1m', time + Tone.Transport.toSeconds('3m'))
@@ -575,9 +588,6 @@ const play = async () => {
     bassSynth.triggerAttackRelease(bassNotes[2], '1m', time + Tone.Transport.toSeconds('6m'))
     bassSynth.triggerAttackRelease(bassNotes[4], '1m', time + Tone.Transport.toSeconds('7m'))
   }, '8m', bassStartTime, bassDuration)
-
-  bassVolume.mute = true
-  Tone.Transport.schedule(time => {bassVolume.mute = false}, '8m')
 
   // Drums ------------------------------------------
 
@@ -592,32 +602,32 @@ const play = async () => {
   
   const hihatClosedPattern = removeOverlappingBeats(constructDrumPattern(hihatClosedProbabilities), hihatOpenPattern)
   const variedHihatClosedPattern = removeOverlappingBeats(varyDrumPattern(hihatClosedPattern, hihatClosedProbabilities, 0.5), variedHihatOpenPattern)
-  
+
   Tone.Transport.scheduleRepeat(time => {
     playDrumPattern(kickPattern, time, 'C2', drumSampler)
+  }, Tone.Time(kickProbabilities.duration) * 2, kickStartTime, kickDuration)
 
-    if (time > Tone.Time('32m')) {
+  Tone.Transport.scheduleRepeat(time => {
       playDrumPattern(snarePattern, time, 'D2', drumSampler)
-    }
+  }, Tone.Time(snareProbabilities.duration) * 2, snareStartTime, snareDuration)
 
-    if (time > Tone.Time('24m')) {
-      playDrumPattern(hihatOpenPattern, time, 'A#2', drumSampler)
-      playDrumPattern(hihatClosedPattern, time, 'F#2', drumSampler, hihatOpenPattern)
-    }
-  }, Tone.Time(kickProbabilities.duration) * 2, '16m', '48m')
+  Tone.Transport.scheduleRepeat(time => {
+    playDrumPattern(hihatOpenPattern, time, 'A#2', drumSampler)
+    playDrumPattern(hihatClosedPattern, time, 'F#2', drumSampler, hihatOpenPattern)
+  }, Tone.Time(hihatOpenProbabilities.duration) * 2, hihatStartTime, hihatDuration)
 
   Tone.Transport.scheduleRepeat(time => {
     playDrumPattern(variedKickPattern, time, 'C2', drumSampler)
+  }, Tone.Time(kickProbabilities.duration) * 2, kickStartTime + Tone.Time(kickProbabilities.duration), kickDuration)
 
-    if (time > Tone.Time('40m')) {
-      playDrumPattern(variedSnarePattern, time, 'D2', drumSampler)
-    }
-    
-    if (time > Tone.Time('24m')) {
-      playDrumPattern(variedHihatOpenPattern, time, 'A#2', drumSampler)
-      playDrumPattern(variedHihatClosedPattern, time, 'F#2', drumSampler, hihatOpenPattern)
-    } 
-  }, Tone.Time(kickProbabilities.duration) * 2, Tone.Time(kickProbabilities.duration) + Tone.Time('16m'), '56m')
+  Tone.Transport.scheduleRepeat(time => {
+    playDrumPattern(variedSnarePattern, time, 'D2', drumSampler)
+  }, Tone.Time(snareProbabilities.duration) * 2, variedSnareStartTime + Tone.Time(snareProbabilities.duration), variedSnareDuration)
+
+  Tone.Transport.scheduleRepeat(time => {
+    playDrumPattern(variedHihatOpenPattern, time, 'A#2', drumSampler)
+    playDrumPattern(variedHihatClosedPattern, time, 'F#2', drumSampler, hihatOpenPattern)
+  }, Tone.Time(hihatOpenProbabilities.duration) * 2, hihatStartTime + Tone.Time(hihatOpenProbabilities.duration), hihatDuration)
 
   crashHits.forEach(hitMeasure => {
     Tone.Transport.schedule(time => {
