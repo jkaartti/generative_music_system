@@ -11,6 +11,7 @@ recorder.onstop = evt => {
   const downloadLink = document.getElementById('downloadLink')
   downloadLink.href = url
   downloadLink.download = `generated_song_${new Date().toISOString()}.wav`
+  audioChuncks.length = 0 // Empty the array for next use
 }
 
 // Magenta stuff
@@ -466,15 +467,11 @@ const concatenateToABACMelody = (melody) => {
   addToConcatenatedWithOffset(concatenatedMelody, melody[1], 2)
   addToConcatenatedWithOffset(concatenatedMelody, melody[0], 4)
   addToConcatenatedWithOffset(concatenatedMelody, melody[2], 6)
-  
-  // console.log('concatenated:')
-  // console.log(concatenatedMelody)
 
   return concatenatedMelody
 }
 
 const scheduleMelody = (melody, startTime, endTime) => {    
-  console.log(melody, startTime, endTime)
   const duration = Tone.Time(endTime) - Tone.Time(startTime)
 
   Tone.Transport.scheduleRepeat((time) => {
