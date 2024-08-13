@@ -310,7 +310,8 @@ const nextRandomMelodyNoteIndex = (pitches, lastIndex, maxChange) => {
   let newIndex = -1
   
   while (newIndex < 0 || pitches.length <= newIndex) {
-    let change = 2 * Math.floor(Math.random() * maxChange) - maxChange
+    let change = Math.floor(2 * Math.random() * maxChange) - maxChange
+    console.log(change)
     newIndex = lastIndex + change
   }
 
