@@ -124,38 +124,38 @@ const drumRevSend = new Tone.Volume(-18).connect(rev)
 drumSampler.connect(drumRevSend)
 // -------------------
 
-const digibellPitches = [
-  'A2',
-  'B2',
-  'D3',
-  'E3',
-  'G3',
-  'A3',
-  'B3',
-  'D4',
-  'E4',
-  'G4',
-  'A4',
-  'B4',
-  'D5',
-  'E5',
-  'G5',
-]
+// const digibellPitches = [
+//   'A2',
+//   'B2',
+//   'D3',
+//   'E3',
+//   'G3',
+//   'A3',
+//   'B3',
+//   'D4',
+//   'E4',
+//   'G4',
+//   'A4',
+//   'B4',
+//   'D5',
+//   'E5',
+//   'G5',
+// ]
 
-const digibellTimeValues = [
-  '0:1:0',
-  '0:1:1',
-  '0:1:2',
-  '0:1:3',
-  '0:2:0',
-  '0:2:1',
-  '0:2:2',
-  '0:2:3',
-  '0:3:0',
-  '0:3:1',
-  '0:3:2',
-  '0:3:3',
-]
+// const digibellTimeValues = [
+//   '0:1:0',
+//   '0:1:1',
+//   '0:1:2',
+//   '0:1:3',
+//   '0:2:0',
+//   '0:2:1',
+//   '0:2:2',
+//   '0:2:3',
+//   '0:3:0',
+//   '0:3:1',
+//   '0:3:2',
+//   '0:3:3',
+// ]
 
 const melodyPitches = [
   'A2',
@@ -224,15 +224,15 @@ const snareProbabilities = {
     { beat: '0:0:1', probability: 0.0 },
     { beat: '0:0:2', probability: 0.1 },
     { beat: '0:0:3', probability: 0.0 },
-    { beat: '0:1:0', probability: 0.5 },
+    { beat: '0:1:0', probability: 0.9 },
     { beat: '0:1:1', probability: 0.0 },
     { beat: '0:1:2', probability: 0.1 },
     { beat: '0:1:3', probability: 0.0 },
-    { beat: '0:2:0', probability: 0.7 },
+    { beat: '0:2:0', probability: 0.0 },
     { beat: '0:2:1', probability: 0.0 },
     { beat: '0:2:2', probability: 0.1 },
     { beat: '0:2:3', probability: 0.0 },
-    { beat: '0:3:0', probability: 0.5 },
+    { beat: '0:3:0', probability: 0.9 },
     { beat: '0:3:1', probability: 0.0 },
     { beat: '0:3:2', probability: 0.1 },
     { beat: '0:3:3', probability: 0.0 },
@@ -416,17 +416,32 @@ const constructDrumPattern = (probabilites) => {
 
 const varyDrumPattern = (originalPattern, probabilites, strength) => {
   const newPattern = []
-  
+
+  const maskPattern = constructDrumPattern(probabilites)
+
   probabilites.probabilityArray.forEach(p => {
-    if (originalPattern.includes(p.beat)) {
-      if (Math.random() < (1 / strength) * p.probability) {
+    if (Math.random() < strength) {
+      if (maskPattern.includes(p.beat)) {
         newPattern.push(p.beat)
       }
     }
-    else if (Math.random() < p.probability * strength) {
-      newPattern.push(p.beat)
+    else {
+      if (originalPattern.includes(p.beat)) {
+        newPattern.push(p.beat)
+      }
     }
   })
+  
+  // probabilites.probabilityArray.forEach(p => {
+  //   if (originalPattern.includes(p.beat)) {
+  //     if (Math.random() < (1 / strength) * p.probability) {
+  //       newPattern.push(p.beat)
+  //     }
+  //   }
+  //   else if (Math.random() < p.probability * strength) {
+  //     newPattern.push(p.beat)
+  //   }
+  // })
 
   return newPattern
 }
@@ -435,14 +450,14 @@ const removeOverlappingBeats = (originalPattern, comparisonPattern) => {
   return originalPattern.filter(p => !comparisonPattern.includes(p))
 }
 
-const playDrumPattern = (pattern, time, note, instrument, chokePattern = null) => {
+const playDrumPattern = (pattern, time, note, instrument, PatternToChoke = null) => {
   pattern.forEach(beat => {
        
     //choke hihat
-    if (chokePattern) {
-      for (let i = chokePattern.length - 1; i >= 0; i--)
+    if (PatternToChoke) {
+      for (let i = PatternToChoke.length - 1; i >= 0; i--)
         {
-          if (Tone.Time(chokePattern[i]) < Tone.Time(beat)) {
+          if (Tone.Time(PatternToChoke[i]) < Tone.Time(beat)) {
             instrument.triggerRelease('A#2', time + Tone.Time(beat))
             i = 0;
           }
@@ -452,6 +467,25 @@ const playDrumPattern = (pattern, time, note, instrument, chokePattern = null) =
     //play the note
     instrument.triggerAttack(note, time + Tone.Time(beat))
   })
+}
+
+const scheduleABACDrumRepeat = (patterns, note, drumSampler, probabilities, startTime, duration, PatternToChoke = Array(3)) => {
+  if (patterns.length < 2) {
+    console.log("drum pattern length must be at least 2")
+    return
+  }
+
+  Tone.Transport.scheduleRepeat(time => {
+    playDrumPattern(patterns[0], time, note, drumSampler, PatternToChoke[0])
+  }, Tone.Time(probabilities.duration) * 2, startTime, duration)
+
+  Tone.Transport.scheduleRepeat(time => {
+    playDrumPattern(patterns[1], time, note, drumSampler, PatternToChoke[1])
+  }, Tone.Time(probabilities.duration) * 4, startTime + Tone.Time(probabilities.duration), duration)
+
+  Tone.Transport.scheduleRepeat(time => {
+    playDrumPattern(patterns[2], time, note, drumSampler, PatternToChoke[2])
+  }, Tone.Time(probabilities.duration) * 4, startTime + Tone.Time(probabilities.duration) * 3, duration)
 }
 
 const addToConcatenatedWithOffset = (concatenatedMelody, melody, offset) => {
@@ -539,15 +573,18 @@ const play = async () => {
   const bassStartTime = Tone.Time('8m').toSeconds()
   const bassDuration = Tone.Time(partStartMeasures['A5']).toSeconds() - bassStartTime
 
-  const kickStartTime = Tone.Time('16m').toSeconds()
-  const hihatStartTime = Tone.Time('24m').toSeconds()
-  const snareStartTime = Tone.Time('32m').toSeconds()
-  const variedSnareStartTime = Tone.Time('40m').toSeconds()
+  // const kickStartTime = Tone.Time('16m').toSeconds()
+  // const hihatStartTime = Tone.Time('24m').toSeconds()
+  // const snareStartTime = Tone.Time('32m').toSeconds()
+
+  // FOR TESTING
+  const kickStartTime = Tone.Time('0m').toSeconds()
+  const hihatStartTime = Tone.Time('0m').toSeconds()
+  const snareStartTime = Tone.Time('0m').toSeconds()
 
   const kickDuration = Tone.Time(partStartMeasures['A5']).toSeconds() - kickStartTime
   const hihatDuration = Tone.Time(partStartMeasures['A5']).toSeconds() - hihatStartTime
   const snareDuration = Tone.Time(partStartMeasures['A5']).toSeconds() - snareStartTime
-  const variedSnareDuration = Tone.Time(partStartMeasures['A5']).toSeconds() - variedSnareStartTime
 
   // Melody -----------------------------------------
 
@@ -597,61 +634,45 @@ const play = async () => {
 
   // Drums ------------------------------------------
 
-  const kickPattern = constructDrumPattern(kickProbabilities)
-  const variedKickPattern = varyDrumPattern(kickPattern, kickProbabilities, 0.5)
+  const kickPatterns = Array(3)
 
-  const snarePattern = constructDrumPattern(snareProbabilities)
-  const variedSnarePattern = varyDrumPattern(snarePattern, snareProbabilities, 0.5)
+  kickPatterns[0] = constructDrumPattern(kickProbabilities)
+  kickPatterns[1] = varyDrumPattern(kickPatterns[0], kickProbabilities, 0.5)
+  kickPatterns[2] = varyDrumPattern(kickPatterns[1], kickProbabilities, 0.5)
 
-  const hihatOpenPattern = constructDrumPattern(hihatOpenProbabilities)
-  const variedHihatOpenPattern = varyDrumPattern(hihatOpenPattern, hihatOpenProbabilities, 0.5)
-  
-  const hihatClosedPattern = removeOverlappingBeats(constructDrumPattern(hihatClosedProbabilities), hihatOpenPattern)
-  const variedHihatClosedPattern = removeOverlappingBeats(varyDrumPattern(hihatClosedPattern, hihatClosedProbabilities, 0.5), variedHihatOpenPattern)
+  const snarePatterns = Array(3)
 
-  console.log("kick")
-  console.log(kickPattern)
-  console.log("snare")
-  console.log(snarePattern)
-  console.log("hihat open")
-  console.log(hihatOpenPattern)
-  console.log("hihat closed")
-  console.log(hihatClosedPattern)
+  snarePatterns[0] = constructDrumPattern(snareProbabilities)
+  snarePatterns[1] = varyDrumPattern(snarePatterns[0], snareProbabilities, 0.5)
+  snarePatterns[2] = varyDrumPattern(snarePatterns[1], snareProbabilities, 0.5)
 
-  console.log("varied kick")
-  console.log(variedKickPattern)
-  console.log("varied snare")
-  console.log(variedSnarePattern)
-  console.log("varied hihat open")
-  console.log(variedHihatOpenPattern)
-  console.log("varied hihat closed")
-  console.log(variedHihatClosedPattern)
+  const hihatOpenPatterns = Array(3)
 
-  Tone.Transport.scheduleRepeat(time => {
-    playDrumPattern(kickPattern, time, 'C2', drumSampler)
-  }, Tone.Time(kickProbabilities.duration) * 2, kickStartTime, kickDuration)
+  hihatOpenPatterns[0] = constructDrumPattern(hihatOpenProbabilities)
+  hihatOpenPatterns[1] = varyDrumPattern(hihatOpenPatterns[0], hihatOpenProbabilities, 0.5)
+  hihatOpenPatterns[2] = varyDrumPattern(hihatOpenPatterns[1], hihatOpenProbabilities, 0.5)
 
-  Tone.Transport.scheduleRepeat(time => {
-      playDrumPattern(snarePattern, time, 'D2', drumSampler)
-  }, Tone.Time(snareProbabilities.duration) * 2, snareStartTime, snareDuration)
+  const hihatClosedPatterns = Array(3)
 
-  Tone.Transport.scheduleRepeat(time => {
-    playDrumPattern(hihatOpenPattern, time, 'A#2', drumSampler)
-    playDrumPattern(hihatClosedPattern, time, 'F#2', drumSampler, hihatOpenPattern)
-  }, Tone.Time(hihatOpenProbabilities.duration) * 2, hihatStartTime, hihatDuration)
+  hihatClosedPatterns[0] = removeOverlappingBeats(constructDrumPattern(hihatClosedProbabilities), hihatOpenPatterns[0])
+  hihatClosedPatterns[1] = removeOverlappingBeats(varyDrumPattern(hihatClosedPatterns[0], hihatClosedProbabilities, 0.5), hihatOpenPatterns[1])
+  hihatClosedPatterns[2] = removeOverlappingBeats(varyDrumPattern(hihatClosedPatterns[1], hihatClosedProbabilities, 0.5), hihatOpenPatterns[2])
 
-  Tone.Transport.scheduleRepeat(time => {
-    playDrumPattern(variedKickPattern, time, 'C2', drumSampler)
-  }, Tone.Time(kickProbabilities.duration) * 2, kickStartTime + Tone.Time(kickProbabilities.duration), kickDuration)
+  for (let i = 0; i < 3; i++) {
+    // console.log(`kick ${i+1}:`)
+    // console.log(kickPatterns[i])
+    // console.log(`snare ${i+1}:`)
+    // console.log(snarePatterns[i])
+    console.log(`hihat open ${i+1}:`)
+    console.log(hihatOpenPatterns[i])
+    console.log(`hihat closed ${i+1}:`)
+    console.log(hihatClosedPatterns[i])
+  }
 
-  Tone.Transport.scheduleRepeat(time => {
-    playDrumPattern(variedSnarePattern, time, 'D2', drumSampler)
-  }, Tone.Time(snareProbabilities.duration) * 2, variedSnareStartTime + Tone.Time(snareProbabilities.duration), variedSnareDuration)
-
-  Tone.Transport.scheduleRepeat(time => {
-    playDrumPattern(variedHihatOpenPattern, time, 'A#2', drumSampler)
-    playDrumPattern(variedHihatClosedPattern, time, 'F#2', drumSampler, hihatOpenPattern)
-  }, Tone.Time(hihatOpenProbabilities.duration) * 2, hihatStartTime + Tone.Time(hihatOpenProbabilities.duration), hihatDuration)
+  scheduleABACDrumRepeat(kickPatterns, 'C2', drumSampler, kickProbabilities, kickStartTime, kickDuration)
+  scheduleABACDrumRepeat(snarePatterns, 'D2', drumSampler, snareProbabilities, snareStartTime, snareDuration)
+  scheduleABACDrumRepeat(hihatOpenPatterns, 'A#2', drumSampler, hihatOpenProbabilities, hihatStartTime, hihatDuration)
+  scheduleABACDrumRepeat(hihatClosedPatterns, 'F#2', drumSampler, hihatClosedProbabilities, hihatStartTime, hihatDuration, hihatOpenPatterns)
 
   crashHits.forEach(hitMeasure => {
     Tone.Transport.schedule(time => {
