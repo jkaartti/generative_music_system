@@ -194,6 +194,8 @@ const melodyTimeValues = [
   '0:3:3',
 ]
 
+const bassPitches = ['A1', 'B1', 'C2', 'E2', 'G2']
+
 const kickProbabilities = {
   probabilityArray: [
     { beat: '0:0:0', probability: 1.0 },
@@ -309,9 +311,9 @@ const createRandomPattern = (pitches, timeValues) => {
 const nextRandomMelodyNoteIndex = (pitches, lastIndex, maxChange) => {
   let newIndex = -1
   
+  // TODO: confirm that newIndex might also get the value of 3
   while (newIndex < 0 || pitches.length <= newIndex) {
     let change = Math.floor(2 * Math.random() * maxChange) - maxChange
-    console.log(change)
     newIndex = lastIndex + change
   }
 
@@ -372,7 +374,7 @@ const convertFromMagenta = (magentaPattern) => {
 
 const generateMagentaMelody = async (melodyPattern, minSumOfNotes = 0) => {
   let sumOfNotes = -1
-  let temp = 0
+  let temp = 0.3
   let sequence
   let counter = 0
   while (sumOfNotes < minSumOfNotes) {
@@ -577,7 +579,10 @@ const play = async () => {
 
   // Bass -------------------------------------------
 
-  const bassNotes = shuffle(['E2', 'G2', 'C2', 'A1', 'B1'])
+  const bassNotes = shuffle(bassPitches)
+
+  console.log("bass")
+  console.log(bassNotes)
   
   Tone.Transport.scheduleRepeat((time) => {
     bassSynth.triggerAttackRelease(bassNotes[0], '1m', time)
@@ -603,6 +608,24 @@ const play = async () => {
   
   const hihatClosedPattern = removeOverlappingBeats(constructDrumPattern(hihatClosedProbabilities), hihatOpenPattern)
   const variedHihatClosedPattern = removeOverlappingBeats(varyDrumPattern(hihatClosedPattern, hihatClosedProbabilities, 0.5), variedHihatOpenPattern)
+
+  console.log("kick")
+  console.log(kickPattern)
+  console.log("snare")
+  console.log(snarePattern)
+  console.log("hihat open")
+  console.log(hihatOpenPattern)
+  console.log("hihat closed")
+  console.log(hihatClosedPattern)
+
+  console.log("varied kick")
+  console.log(variedKickPattern)
+  console.log("varied snare")
+  console.log(variedSnarePattern)
+  console.log("varied hihat open")
+  console.log(variedHihatOpenPattern)
+  console.log("varied hihat closed")
+  console.log(variedHihatClosedPattern)
 
   Tone.Transport.scheduleRepeat(time => {
     playDrumPattern(kickPattern, time, 'C2', drumSampler)
