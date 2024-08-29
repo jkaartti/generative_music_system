@@ -1,3 +1,5 @@
+const MAGENTA_PITCH_OFFSET = 12
+
 // Set up recording
 const recordingDestination = Tone.context.createMediaStreamDestination()
 const recorder = new MediaRecorder(recordingDestination.stream)
@@ -26,7 +28,7 @@ master.connect(recordingDestination)
 // -------------------
 
 // BASS --------------
-const bassVolume = new Tone.Volume().connect(master) // For muting
+const bassVolume = new Tone.Volume().connect(master)
 const bassSynth = new Tone.Synth().connect(bassVolume)
 bassSynth.volume.value = -3
 
@@ -34,35 +36,35 @@ const bassSynthMeter = new Tone.Meter()
 bassSynth.connect(bassSynthMeter)
 // -------------------
 
-// DIGIBELL ----------
-// const digibell = new Tone.Sampler({
-//   urls: {
-//     'A2': 'Digibell_A2.mp3',
-//     'B2': 'Digibell_B2.mp3',
-//     'D3': 'Digibell_D3.mp3',
-//     'E3': 'Digibell_E3.mp3',
-//     'G3': 'Digibell_G3.mp3',
-//     'A3': 'Digibell_A3.mp3',
-//     'B3': 'Digibell_B3.mp3',
-//     'D4': 'Digibell_D4.mp3',
-//     'E4': 'Digibell_E4.mp3',
-//     'G4': 'Digibell_G4.mp3',
-//     'A4': 'Digibell_A4.mp3',
-//     'B4': 'Digibell_B4.mp3',
-//     'D5': 'Digibell_D5.mp3',
-//     'E5': 'Digibell_E5.mp3',
-//     'G5': 'Digibell_G5.mp3',
-//   },
-//   release: 1,
-// 	baseUrl: './Digibell/',
-// })
-// digibell.volume.value = -18
+// HARMONY -----------
+const harmonyVolume = new Tone.Volume().connect(master)
+const harmonySynth = new Tone.PolySynth(
+  Tone.FMSynth, {
+    "harmonicity": 1,
+    "modulationIndex": 5,
+    "oscillator": {
+        "type": "sine"
+    },
+    "envelope": {
+        "attack": 1,
+        "decay": 5,
+        "sustain": 0.05,
+        "release": 10
+    },
+    "modulation": {
+        "type": "sine"
+    },
+    "modulationEnvelope": {
+        "attack": 2,
+        "decay": 0.2,
+        "sustain": 0.1,
+        "release": 0.2
+    }
+  }
+).connect(harmonyVolume)
 
-// const digibellMeter = new Tone.Meter()
-// digibell.connect(digibellMeter)
+harmonySynth.volume.value = -15
 
-// const digibellCompressor = new Tone.Compressor(-24, 6).connect(master)
-// digibell.connect(digibellCompressor)
 // -------------------
 
 // MELODY ------------
@@ -87,7 +89,7 @@ const melodySynth = new Tone.Sampler({
   release: 1,
 	baseUrl: './Digibell/',
 })
-melodySynth.volume.value = -18
+melodySynth.volume.value = -17
 
 const melodyMeter = new Tone.Meter()
 melodySynth.connect(melodyMeter)
@@ -110,7 +112,7 @@ const drumSampler = new Tone.Sampler({
 	baseUrl: './drs/',
 }).connect(master)
 
-drumSampler.volume.value = -7
+drumSampler.volume.value = -8
 
 const drumMeter = new Tone.Meter()
 drumSampler.connect(drumMeter)
@@ -120,42 +122,10 @@ drumSampler.connect(drumMeter)
 const rev = new Tone.Reverb(5).connect(master)
 // digibell.connect(rev)
 melodySynth.connect(rev)
+harmonySynth.connect(rev)
 const drumRevSend = new Tone.Volume(-18).connect(rev)
 drumSampler.connect(drumRevSend)
 // -------------------
-
-// const digibellPitches = [
-//   'A2',
-//   'B2',
-//   'D3',
-//   'E3',
-//   'G3',
-//   'A3',
-//   'B3',
-//   'D4',
-//   'E4',
-//   'G4',
-//   'A4',
-//   'B4',
-//   'D5',
-//   'E5',
-//   'G5',
-// ]
-
-// const digibellTimeValues = [
-//   '0:1:0',
-//   '0:1:1',
-//   '0:1:2',
-//   '0:1:3',
-//   '0:2:0',
-//   '0:2:1',
-//   '0:2:2',
-//   '0:2:3',
-//   '0:3:0',
-//   '0:3:1',
-//   '0:3:2',
-//   '0:3:3',
-// ]
 
 const melodyPitches = [
   'A2',
@@ -195,6 +165,16 @@ const melodyTimeValues = [
 ]
 
 const bassPitches = ['A1', 'B1', 'C2', 'E2', 'G2']
+
+const harmonyPitches = [
+  'E4',
+  'G4',
+  'B4',
+  'D5',
+  'E5',
+  'G5',
+  'B5',
+]
 
 const kickProbabilities = {
   probabilityArray: [
@@ -353,7 +333,7 @@ const convertToMagenta = (notePattern) => {
   const magentaPattern = []
   notePattern.forEach(note => {
     magentaPattern.push({
-      pitch: Tone.Midi(note.pitch).toMidi(),
+      pitch: Tone.Midi(note.pitch).toMidi() - MAGENTA_PITCH_OFFSET,
       startTime: Tone.Time(note.startTime).toSeconds(),
       endTime: Tone.Time(note.startTime) + 0.125,
     })
@@ -365,7 +345,7 @@ const convertFromMagenta = (magentaPattern) => {
   const notePattern = []
   magentaPattern.forEach(note => {
     notePattern.push({
-      pitch: Tone.Frequency(note.pitch, 'midi').toNote(),
+      pitch: Tone.Frequency(note.pitch + MAGENTA_PITCH_OFFSET, 'midi').toNote(),
       startTime: Tone.Time(note.quantizedStartStep / 8).toBarsBeatsSixteenths(),
     })
   })
@@ -374,11 +354,11 @@ const convertFromMagenta = (magentaPattern) => {
 
 const generateMagentaMelody = async (melodyPattern, minSumOfNotes = 0) => {
   let sumOfNotes = -1
-  let temp = 0.3
+  let temp = 0.0
   let sequence
   let counter = 0
   while (sumOfNotes < minSumOfNotes) {
-    temp += 0.1
+    temp += 0.05
     const magentaPattern = convertToMagenta(melodyPattern)
     const melodyToQuantize = {notes: magentaPattern, totalTime: 4}
     const qns = mm.sequences.quantizeNoteSequence(melodyToQuantize, 4)
@@ -386,7 +366,7 @@ const generateMagentaMelody = async (melodyPattern, minSumOfNotes = 0) => {
     sumOfNotes = sequence.notes.length
     counter++
   }
-  console.log(`generated magenta melody on try ${counter} with temperature ${temp}`)
+  console.log(`generated magenta melody on try ${counter} with temperature ${Math.round(temp * 100) / 100}`)
   return convertFromMagenta(sequence.notes)
 }
 
@@ -431,17 +411,6 @@ const varyDrumPattern = (originalPattern, probabilites, strength) => {
       }
     }
   })
-  
-  // probabilites.probabilityArray.forEach(p => {
-  //   if (originalPattern.includes(p.beat)) {
-  //     if (Math.random() < (1 / strength) * p.probability) {
-  //       newPattern.push(p.beat)
-  //     }
-  //   }
-  //   else if (Math.random() < p.probability * strength) {
-  //     newPattern.push(p.beat)
-  //   }
-  // })
 
   return newPattern
 }
@@ -562,25 +531,30 @@ const play = async () => {
     'B2' : '40m', // original
     'A3' : '48m', // magenta
     'B3' : '56m', // magenta
-    'A4' : '64m', // magenta
-    'B4' : '68m', // magenta
-    'A5' : '72m', // original
-    'END': '76m',
+    'A4a': '64m', // original
+    'A4b': '68m', // magenta
+    'B4a': '72m', // original
+    'B4b': '76m', // magenta
+    'A5' : '80m', // original
+    'END': '84m',
   }
 
-  const crashHits = ['A2', 'A3', 'A5'].map(key => partStartMeasures[key])
+  const crashHits = ['A2', 'A3', 'A4a', 'A5'].map(key => partStartMeasures[key])
 
   const bassStartTime = Tone.Time('8m').toSeconds()
   const bassDuration = Tone.Time(partStartMeasures['A5']).toSeconds() - bassStartTime
 
-  // const kickStartTime = Tone.Time('16m').toSeconds()
-  // const hihatStartTime = Tone.Time('24m').toSeconds()
-  // const snareStartTime = Tone.Time('32m').toSeconds()
+  const harmonyStartTime = Tone.Time('64m').toSeconds()
+  const harmonyDuration = Tone.Time(partStartMeasures['A5']).toSeconds() - harmonyStartTime
+
+  const kickStartTime = Tone.Time('16m').toSeconds()
+  const hihatStartTime = Tone.Time('24m').toSeconds()
+  const snareStartTime = Tone.Time('32m').toSeconds()
 
   // FOR TESTING
-  const kickStartTime = Tone.Time('0m').toSeconds()
-  const hihatStartTime = Tone.Time('0m').toSeconds()
-  const snareStartTime = Tone.Time('0m').toSeconds()
+  // const kickStartTime = Tone.Time('0m').toSeconds()
+  // const hihatStartTime = Tone.Time('0m').toSeconds()
+  // const snareStartTime = Tone.Time('0m').toSeconds()
 
   const kickDuration = Tone.Time(partStartMeasures['A5']).toSeconds() - kickStartTime
   const hihatDuration = Tone.Time(partStartMeasures['A5']).toSeconds() - hihatStartTime
@@ -604,22 +578,44 @@ const play = async () => {
   const generatedMelodyA = await generateMagentaMelody(concatenatedMelodyA, 10)
   const generatedMelodyB = await generateMagentaMelody(concatenatedMelodyB, 10)
 
-  scheduleMelody(concatenatedMelodyA, partStartMeasures['A1'], partStartMeasures['B1'] )
-  scheduleMelody(concatenatedMelodyB, partStartMeasures['B1'], partStartMeasures['A2'] )
-  scheduleMelody(concatenatedMelodyA, partStartMeasures['A2'], partStartMeasures['B2'] )
-  scheduleMelody(concatenatedMelodyB, partStartMeasures['B2'], partStartMeasures['A3'] )
-  scheduleMelody(generatedMelodyA,    partStartMeasures['A3'], partStartMeasures['B3'] )
-  scheduleMelody(generatedMelodyB,    partStartMeasures['B3'], partStartMeasures['A4'] )
-  scheduleMelody(generatedMelodyA,    partStartMeasures['A4'], partStartMeasures['B4'] )
-  scheduleMelody(generatedMelodyB,    partStartMeasures['B4'], partStartMeasures['A5'] )
-  scheduleMelody(concatenatedMelodyA, partStartMeasures['A5'], partStartMeasures['END'])
+  scheduleMelody(concatenatedMelodyA, partStartMeasures['A1'],  partStartMeasures['B1'] )
+  scheduleMelody(concatenatedMelodyB, partStartMeasures['B1'],  partStartMeasures['A2'] )
+  scheduleMelody(concatenatedMelodyA, partStartMeasures['A2'],  partStartMeasures['B2'] )
+  scheduleMelody(concatenatedMelodyB, partStartMeasures['B2'],  partStartMeasures['A3'] )
+  scheduleMelody(generatedMelodyA,    partStartMeasures['A3'],  partStartMeasures['B3'] )
+  scheduleMelody(generatedMelodyB,    partStartMeasures['B3'],  partStartMeasures['A4a'])
+  scheduleMelody(concatenatedMelodyA, partStartMeasures['A4a'], partStartMeasures['A4b'])
+  scheduleMelody(generatedMelodyA,    partStartMeasures['A4b'], partStartMeasures['B4a'])
+  scheduleMelody(concatenatedMelodyB, partStartMeasures['B4a'], partStartMeasures['B4b'])
+  scheduleMelody(generatedMelodyB,    partStartMeasures['B4b'], partStartMeasures['A5'] )
+  scheduleMelody(concatenatedMelodyA, partStartMeasures['A5'],  partStartMeasures['END'])
+
+  // Harmony ----------------------------------------
+
+  const harmonyDurations = ['1m', '2m']
+  const noteProbability = 0.2
+  const maxNotes = 2
+
+  Tone.Transport.scheduleRepeat(time => {
+    for (let i = 0; i < maxNotes; i++) {
+      if (Math.random() < noteProbability) {
+        continue
+      }
+
+      console.log(i)
+  
+      const randomPitch = harmonyPitches[Math.floor(Math.random() * harmonyPitches.length)]
+      const randomDuration = harmonyDurations[Math.floor(Math.random() * harmonyDurations.length)]
+      harmonySynth.triggerAttackRelease(randomPitch, randomDuration, time)
+    }
+  }, '4n', harmonyStartTime, harmonyDuration)
 
   // Bass -------------------------------------------
 
   const bassNotes = shuffle(bassPitches)
 
-  console.log("bass")
-  console.log(bassNotes)
+  // console.log("bass")
+  // console.log(bassNotes)
   
   Tone.Transport.scheduleRepeat((time) => {
     bassSynth.triggerAttackRelease(bassNotes[0], '1m', time)
@@ -663,10 +659,10 @@ const play = async () => {
     // console.log(kickPatterns[i])
     // console.log(`snare ${i+1}:`)
     // console.log(snarePatterns[i])
-    console.log(`hihat open ${i+1}:`)
-    console.log(hihatOpenPatterns[i])
-    console.log(`hihat closed ${i+1}:`)
-    console.log(hihatClosedPatterns[i])
+    // console.log(`hihat open ${i+1}:`)
+    // console.log(hihatOpenPatterns[i])
+    // console.log(`hihat closed ${i+1}:`)
+    // console.log(hihatClosedPatterns[i])
   }
 
   scheduleABACDrumRepeat(kickPatterns, 'C2', drumSampler, kickProbabilities, kickStartTime, kickDuration)
@@ -700,8 +696,10 @@ const play = async () => {
     root.style.background = master.mute ? 'rgb(10,10,10)' : `radial-gradient(circle, rgb(${red},${green},${blue}) 0%, rgb(10,10,10) 100%)`
   }, 100)
 
-  Tone.Draw.schedule(time => {
-    stop()
+  Tone.Transport.schedule(time => {
+    Tone.Draw.schedule(function(){
+      stop()
+    }, time)
   }, Tone.Time(partStartMeasures['END']).toSeconds() + rev.decay)
 
   Tone.Transport.start()
