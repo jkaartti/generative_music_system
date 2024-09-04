@@ -127,6 +127,30 @@ const drumRevSend = new Tone.Volume(-18).connect(rev)
 drumSampler.connect(drumRevSend)
 // -------------------
 
+// const melodyPitches = [
+//   'A2',
+//   'B2',
+//   'C3',
+//   'D3',
+//   'E3',
+//   'F#3',
+//   'G3',
+//   'A3',
+//   'B3',
+//   'C4',
+//   'D4',
+//   'E4',
+//   'F#4',
+//   'G4',
+//   'A4',
+//   'B4',
+//   'C5',
+//   'D5',
+//   'E5',
+//   'F#5',
+//   'G5',
+// ]
+
 const melodyPitches = [
   'A2',
   'B2',
@@ -291,9 +315,8 @@ const createRandomPattern = (pitches, timeValues) => {
 const nextRandomMelodyNoteIndex = (pitches, lastIndex, maxChange) => {
   let newIndex = -1
   
-  // TODO: confirm that newIndex might also get the value of 3
   while (newIndex < 0 || pitches.length <= newIndex) {
-    let change = Math.floor(2 * Math.random() * maxChange) - maxChange
+    let change = Math.floor(2 * Math.random() * maxChange + 0.5) - maxChange
     newIndex = lastIndex + change
   }
 
@@ -574,6 +597,9 @@ const play = async () => {
 
   const concatenatedMelodyA = concatenateToABACMelody(melodyA)
   const concatenatedMelodyB = concatenateToABACMelody(melodyB)
+
+  console.log(concatenatedMelodyA)
+  console.log(concatenatedMelodyB)
   
   const generatedMelodyA = await generateMagentaMelody(concatenatedMelodyA, 10)
   const generatedMelodyB = await generateMagentaMelody(concatenatedMelodyB, 10)
@@ -592,23 +618,21 @@ const play = async () => {
 
   // Harmony ----------------------------------------
 
-  const harmonyDurations = ['1m', '2m']
-  const noteProbability = 0.2
-  const maxNotes = 2
+  // const harmonyDurations = ['1m', '2m']
+  // const noteProbability = 0.2
+  // const maxNotes = 2
 
-  Tone.Transport.scheduleRepeat(time => {
-    for (let i = 0; i < maxNotes; i++) {
-      if (Math.random() < noteProbability) {
-        continue
-      }
-
-      console.log(i)
+  // Tone.Transport.scheduleRepeat(time => {
+  //   for (let i = 0; i < maxNotes; i++) {
+  //     if (Math.random() < noteProbability) {
+  //       continue
+  //     }
   
-      const randomPitch = harmonyPitches[Math.floor(Math.random() * harmonyPitches.length)]
-      const randomDuration = harmonyDurations[Math.floor(Math.random() * harmonyDurations.length)]
-      harmonySynth.triggerAttackRelease(randomPitch, randomDuration, time)
-    }
-  }, '4n', harmonyStartTime, harmonyDuration)
+  //     const randomPitch = harmonyPitches[Math.floor(Math.random() * harmonyPitches.length)]
+  //     const randomDuration = harmonyDurations[Math.floor(Math.random() * harmonyDurations.length)]
+  //     harmonySynth.triggerAttackRelease(randomPitch, randomDuration, time)
+  //   }
+  // }, '4n', harmonyStartTime, harmonyDuration)
 
   // Bass -------------------------------------------
 
