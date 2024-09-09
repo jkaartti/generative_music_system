@@ -46,9 +46,9 @@ const harmonySynth = new Tone.PolySynth(
         "type": "sine"
     },
     "envelope": {
-        "attack": 1,
+        "attack": 0,
         "decay": 5,
-        "sustain": 0.05,
+        "sustain": 0.3,
         "release": 10
     },
     "modulation": {
@@ -63,7 +63,7 @@ const harmonySynth = new Tone.PolySynth(
   }
 ).connect(harmonyVolume)
 
-harmonySynth.volume.value = -15
+harmonySynth.volume.value = -18
 
 // -------------------
 
@@ -120,9 +120,10 @@ drumSampler.connect(drumMeter)
 
 // REVERB ------------
 const rev = new Tone.Reverb(5).connect(master)
+const harmonyRev = new Tone.Reverb(10).connect(master)
 // digibell.connect(rev)
 melodySynth.connect(rev)
-harmonySynth.connect(rev)
+harmonySynth.connect(harmonyRev)
 const drumRevSend = new Tone.Volume(-18).connect(rev)
 drumSampler.connect(drumRevSend)
 // -------------------
@@ -191,13 +192,13 @@ const melodyTimeValues = [
 const bassPitches = ['A1', 'B1', 'C2', 'E2', 'G2']
 
 const harmonyPitches = [
+  'E3',
+  'G3',
+  'B3',
+  'D4',
   'E4',
   'G4',
   'B4',
-  'D5',
-  'E5',
-  'G5',
-  'B5',
 ]
 
 const kickProbabilities = {
@@ -225,21 +226,21 @@ const kickProbabilities = {
 const snareProbabilities = {
   probabilityArray: [
     { beat: '0:0:0', probability: 0.0 },
-    { beat: '0:0:1', probability: 0.0 },
+    { beat: '0:0:1', probability: 0.05 },
     { beat: '0:0:2', probability: 0.1 },
-    { beat: '0:0:3', probability: 0.0 },
-    { beat: '0:1:0', probability: 0.9 },
-    { beat: '0:1:1', probability: 0.0 },
+    { beat: '0:0:3', probability: 0.05 },
+    { beat: '0:1:0', probability: 0.8 },
+    { beat: '0:1:1', probability: 0.05 },
     { beat: '0:1:2', probability: 0.1 },
-    { beat: '0:1:3', probability: 0.0 },
-    { beat: '0:2:0', probability: 0.0 },
-    { beat: '0:2:1', probability: 0.0 },
+    { beat: '0:1:3', probability: 0.05 },
+    { beat: '0:2:0', probability: 0.3 },
+    { beat: '0:2:1', probability: 0.05 },
     { beat: '0:2:2', probability: 0.1 },
-    { beat: '0:2:3', probability: 0.0 },
-    { beat: '0:3:0', probability: 0.9 },
-    { beat: '0:3:1', probability: 0.0 },
+    { beat: '0:2:3', probability: 0.05 },
+    { beat: '0:3:0', probability: 0.8 },
+    { beat: '0:3:1', probability: 0.05 },
     { beat: '0:3:2', probability: 0.1 },
-    { beat: '0:3:3', probability: 0.0 },
+    { beat: '0:3:3', probability: 0.05 },
   ],
   duration: '1m'
 }
@@ -337,6 +338,7 @@ const createRandomMelody = (pitches, timeValues) => {
     pitchIndex = nextRandomMelodyNoteIndex(pitches, pitchIndex, 3)
 
     const newNote = {
+      pitchIndex: pitchIndex,
       pitch: pitches[pitchIndex],
       startTime: timeValues[i],
     }
@@ -345,6 +347,137 @@ const createRandomMelody = (pitches, timeValues) => {
   }
 
   return notePattern
+}
+
+const addToConcatenatedWithOffset = (concatenatedMelody, melody, offset) => {
+  melody.forEach(note => {
+    concatenatedMelody.push({
+      pitchIndex: note.pitchIndex,
+      pitch: note.pitch,
+      startTime: Tone.Time(Tone.Time(note.startTime) + offset).toBarsBeatsSixteenths()
+    })
+  })
+}
+
+const concatenateToABACMelody = (melody) => {
+  const concatenatedMelody = []
+
+  addToConcatenatedWithOffset(concatenatedMelody, melody[0], 0)
+  addToConcatenatedWithOffset(concatenatedMelody, melody[1], 2)
+  addToConcatenatedWithOffset(concatenatedMelody, melody[0], 4)
+  addToConcatenatedWithOffset(concatenatedMelody, melody[2], 6)
+
+  return concatenatedMelody
+}
+
+const randomRhythmOffset = () => {
+  const rand = Math.random()
+  if (rand < 0.1) return -2
+  if (rand < 0.3) return -1
+  if (rand < 0.7) return 0
+  if (rand < 0.9) return 1
+  
+  return 2
+}
+
+const randomPitchOffset = () => {
+  const rand = Math.random()
+  if (rand < 0.3) return -1
+  if (rand < 0.7) return 0
+
+  return 1
+}
+
+const randomFraseLength = () => {
+  return Math.floor(Math.random() * 5) + 3 // [3, 4, 5, 6, 7]
+}
+
+const varyMelodyRhytm = (melody) => {
+  const variedMelody = []
+
+  let i = 0
+  let rhythmOffset = randomRhythmOffset()
+  let fraseLength = randomFraseLength()
+  melody.forEach(note => {
+    if (i > fraseLength) {
+      i = 0
+      rhythmOffset = randomRhythmOffset()
+      fraseLength = randomFraseLength()
+    }
+    i++
+
+    const newNote = {
+      ...note,
+      startTime: Tone.Time(Tone.Time(note.startTime) + rhythmOffset * Tone.Time('16n')).toBarsBeatsSixteenths()
+    }
+
+    // No negative start times
+    if (newNote.startTime.includes('-')) {
+      newNote.startTime = '0:0:0'
+    }
+
+    // If there's already a note on a given beat, try the next one until we find an empty one
+    for (let j = 1; variedMelody.map(n => n.startTime).includes(newNote.startTime); j++) {
+      newNote.startTime = Tone.Time(Tone.Time(note.startTime) + (rhythmOffset + j) * Tone.Time('16n')).toBarsBeatsSixteenths()
+    }
+
+    variedMelody.push(newNote)
+  })
+
+  // Filter out notes that exceed the four bars
+  const filteredVariedMelody = variedMelody.filter(n => Tone.Time(n.startTime) < Tone.Time('4:0:0'))
+
+  return filteredVariedMelody
+}
+
+const varyMelodyPitch = (melody, melodyPitches) => {
+  const variedMelody = []
+
+  let i = 0
+  let pitchOffset = randomPitchOffset()
+  let fraseLength = randomFraseLength()
+  melody.forEach(note => {
+    i++
+    if (i > fraseLength) {
+      i = 0
+      pitchOffset = randomPitchOffset()
+      fraseLength = randomFraseLength()
+    }
+
+    let newPitchIndex = note.pitchIndex + pitchOffset
+
+    if (newPitchIndex < 0) {
+      newPitchIndex = -newPitchIndex
+    }
+
+    if (newPitchIndex >= melodyPitches.length) {
+      newPitchIndex = 2 * (melodyPitches.length - 1) - newPitchIndex
+    }
+
+    const newNote = {
+      ...note,
+      pitchIndex: newPitchIndex,
+      pitch: melodyPitches[newPitchIndex]
+    }
+
+    variedMelody.push(newNote)
+
+  })
+  return variedMelody
+}
+
+const varyMelody = (melody, melodyPitches) => {
+  return varyMelodyPitch(varyMelodyRhytm(melody), melodyPitches)
+}
+
+const scheduleMelody = (melody, startTime, endTime) => {    
+  const duration = Tone.Time(endTime) - Tone.Time(startTime)
+
+  Tone.Transport.scheduleRepeat((time) => {
+    melody.forEach(note => {
+      melodySynth.triggerAttack(note.pitch, Tone.Transport.toSeconds(note.startTime) + time)
+    })
+  }, Tone.Time('1m') * 4, startTime, duration)
 }
 
 const patternDuration = (pattern) => {
@@ -480,36 +613,6 @@ const scheduleABACDrumRepeat = (patterns, note, drumSampler, probabilities, star
   }, Tone.Time(probabilities.duration) * 4, startTime + Tone.Time(probabilities.duration) * 3, duration)
 }
 
-const addToConcatenatedWithOffset = (concatenatedMelody, melody, offset) => {
-  melody.forEach(note => {
-    concatenatedMelody.push({
-      pitch: note.pitch,
-      startTime: Tone.Time(Tone.Time(note.startTime) + offset).toBarsBeatsSixteenths()
-    })
-  })
-}
-
-const concatenateToABACMelody = (melody) => {
-  const concatenatedMelody = []
-
-  addToConcatenatedWithOffset(concatenatedMelody, melody[0], 0)
-  addToConcatenatedWithOffset(concatenatedMelody, melody[1], 2)
-  addToConcatenatedWithOffset(concatenatedMelody, melody[0], 4)
-  addToConcatenatedWithOffset(concatenatedMelody, melody[2], 6)
-
-  return concatenatedMelody
-}
-
-const scheduleMelody = (melody, startTime, endTime) => {    
-  const duration = Tone.Time(endTime) - Tone.Time(startTime)
-
-  Tone.Transport.scheduleRepeat((time) => {
-    melody.forEach(note => {
-      melodySynth.triggerAttack(note.pitch, Tone.Transport.toSeconds(note.startTime) + time)
-    })
-  }, Tone.Time('1m') * 4, startTime, duration)
-}
-
 const toggleElementVisibility = (element) => {
   const currentDisplay = element.style.display
   if (!currentDisplay || currentDisplay === 'none') {
@@ -552,12 +655,12 @@ const play = async () => {
     'B1' : '16m', // original
     'A2' : '32m', // original
     'B2' : '40m', // original
-    'A3' : '48m', // magenta
-    'B3' : '56m', // magenta
+    'A3' : '48m', // varied
+    'B3' : '56m', // varied
     'A4a': '64m', // original
-    'A4b': '68m', // magenta
+    'A4b': '68m', // varied
     'B4a': '72m', // original
-    'B4b': '76m', // magenta
+    'B4b': '76m', // varied
     'A5' : '80m', // original
     'END': '84m',
   }
@@ -567,7 +670,7 @@ const play = async () => {
   const bassStartTime = Tone.Time('8m').toSeconds()
   const bassDuration = Tone.Time(partStartMeasures['A5']).toSeconds() - bassStartTime
 
-  const harmonyStartTime = Tone.Time('64m').toSeconds()
+  const harmonyStartTime = Tone.Time(partStartMeasures['A3']).toSeconds()
   const harmonyDuration = Tone.Time(partStartMeasures['A5']).toSeconds() - harmonyStartTime
 
   const kickStartTime = Tone.Time('16m').toSeconds()
@@ -598,22 +701,25 @@ const play = async () => {
   const concatenatedMelodyA = concatenateToABACMelody(melodyA)
   const concatenatedMelodyB = concatenateToABACMelody(melodyB)
 
-  console.log(concatenatedMelodyA)
-  console.log(concatenatedMelodyB)
+  const variedMelodyA = varyMelody(concatenatedMelodyA, melodyPitches)
+  const variedMelodyB = varyMelody(concatenatedMelodyB, melodyPitches)
+
+  // console.log(concatenatedMelodyA)
+  // console.log(concatenatedMelodyB)
   
-  const generatedMelodyA = await generateMagentaMelody(concatenatedMelodyA, 10)
-  const generatedMelodyB = await generateMagentaMelody(concatenatedMelodyB, 10)
+  // const generatedMelodyA = await generateMagentaMelody(concatenatedMelodyA, 10)
+  // const generatedMelodyB = await generateMagentaMelody(concatenatedMelodyB, 10)
 
   scheduleMelody(concatenatedMelodyA, partStartMeasures['A1'],  partStartMeasures['B1'] )
   scheduleMelody(concatenatedMelodyB, partStartMeasures['B1'],  partStartMeasures['A2'] )
   scheduleMelody(concatenatedMelodyA, partStartMeasures['A2'],  partStartMeasures['B2'] )
   scheduleMelody(concatenatedMelodyB, partStartMeasures['B2'],  partStartMeasures['A3'] )
-  scheduleMelody(generatedMelodyA,    partStartMeasures['A3'],  partStartMeasures['B3'] )
-  scheduleMelody(generatedMelodyB,    partStartMeasures['B3'],  partStartMeasures['A4a'])
+  scheduleMelody(variedMelodyA,       partStartMeasures['A3'],  partStartMeasures['B3'] )
+  scheduleMelody(variedMelodyB,       partStartMeasures['B3'],  partStartMeasures['A4a'])
   scheduleMelody(concatenatedMelodyA, partStartMeasures['A4a'], partStartMeasures['A4b'])
-  scheduleMelody(generatedMelodyA,    partStartMeasures['A4b'], partStartMeasures['B4a'])
+  scheduleMelody(variedMelodyA,       partStartMeasures['A4b'], partStartMeasures['B4a'])
   scheduleMelody(concatenatedMelodyB, partStartMeasures['B4a'], partStartMeasures['B4b'])
-  scheduleMelody(generatedMelodyB,    partStartMeasures['B4b'], partStartMeasures['A5'] )
+  scheduleMelody(variedMelodyB,       partStartMeasures['B4b'], partStartMeasures['A5'] )
   scheduleMelody(concatenatedMelodyA, partStartMeasures['A5'],  partStartMeasures['END'])
 
   // Harmony ----------------------------------------
@@ -624,7 +730,7 @@ const play = async () => {
 
   // Tone.Transport.scheduleRepeat(time => {
   //   for (let i = 0; i < maxNotes; i++) {
-  //     if (Math.random() < noteProbability) {
+  //     if (Math.random() > noteProbability) {
   //       continue
   //     }
   
@@ -632,7 +738,7 @@ const play = async () => {
   //     const randomDuration = harmonyDurations[Math.floor(Math.random() * harmonyDurations.length)]
   //     harmonySynth.triggerAttackRelease(randomPitch, randomDuration, time)
   //   }
-  // }, '4n', harmonyStartTime, harmonyDuration)
+  // }, '2n', harmonyStartTime, harmonyDuration)
 
   // Bass -------------------------------------------
 
