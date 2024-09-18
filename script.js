@@ -1,4 +1,4 @@
-const MAGENTA_PITCH_OFFSET = 12
+const TEMPO = 120
 
 // Set up recording
 const recordingDestination = Tone.context.createMediaStreamDestination()
@@ -15,10 +15,6 @@ recorder.onstop = evt => {
   downloadLink.download = `generated_song_${new Date().toISOString()}.wav`
   audioChuncks.length = 0 // Empty the array for next use
 }
-
-// Magenta stuff
-const RNN_CHECKPOINT = 'https://storage.googleapis.com/magentadata/js/checkpoints/music_rnn/melody_rnn'
-const musicRnn = new mm.MusicRNN(RNN_CHECKPOINT)
 
 // MASTER ------------
 const monitor = new Tone.Volume().toDestination()
@@ -121,36 +117,11 @@ drumSampler.connect(drumMeter)
 // REVERB ------------
 const rev = new Tone.Reverb(5).connect(master)
 const harmonyRev = new Tone.Reverb(10).connect(master)
-// digibell.connect(rev)
 melodySynth.connect(rev)
 harmonySynth.connect(harmonyRev)
 const drumRevSend = new Tone.Volume(-18).connect(rev)
 drumSampler.connect(drumRevSend)
 // -------------------
-
-// const melodyPitches = [
-//   'A2',
-//   'B2',
-//   'C3',
-//   'D3',
-//   'E3',
-//   'F#3',
-//   'G3',
-//   'A3',
-//   'B3',
-//   'C4',
-//   'D4',
-//   'E4',
-//   'F#4',
-//   'G4',
-//   'A4',
-//   'B4',
-//   'C5',
-//   'D5',
-//   'E5',
-//   'F#5',
-//   'G5',
-// ]
 
 const melodyPitches = [
   'A2',
@@ -485,47 +456,6 @@ const patternDuration = (pattern) => {
   return maxTimeValue + Tone.Transport.toSeconds('16n')
 }
 
-const convertToMagenta = (notePattern) => {
-  const magentaPattern = []
-  notePattern.forEach(note => {
-    magentaPattern.push({
-      pitch: Tone.Midi(note.pitch).toMidi() - MAGENTA_PITCH_OFFSET,
-      startTime: Tone.Time(note.startTime).toSeconds(),
-      endTime: Tone.Time(note.startTime) + 0.125,
-    })
-  })
-  return magentaPattern
-}
-
-const convertFromMagenta = (magentaPattern) => {
-  const notePattern = []
-  magentaPattern.forEach(note => {
-    notePattern.push({
-      pitch: Tone.Frequency(note.pitch + MAGENTA_PITCH_OFFSET, 'midi').toNote(),
-      startTime: Tone.Time(note.quantizedStartStep / 8).toBarsBeatsSixteenths(),
-    })
-  })
-  return notePattern
-}
-
-const generateMagentaMelody = async (melodyPattern, minSumOfNotes = 0) => {
-  let sumOfNotes = -1
-  let temp = 0.0
-  let sequence
-  let counter = 0
-  while (sumOfNotes < minSumOfNotes) {
-    temp += 0.05
-    const magentaPattern = convertToMagenta(melodyPattern)
-    const melodyToQuantize = {notes: magentaPattern, totalTime: 4}
-    const qns = mm.sequences.quantizeNoteSequence(melodyToQuantize, 4)
-    sequence = await musicRnn.continueSequence(qns, 64, temp)
-    sumOfNotes = sequence.notes.length
-    counter++
-  }
-  console.log(`generated magenta melody on try ${counter} with temperature ${Math.round(temp * 100) / 100}`)
-  return convertFromMagenta(sequence.notes)
-}
-
 const shuffle = (array) => {
   let currentIndex = array.length
   let randomIndex
@@ -635,6 +565,7 @@ const toggleMute = () => {
 // ================================================== PLAY ==================================================
 
 const play = async () => {
+  Tone.Transport.bpm.value = TEMPO
   recorder.start()
   
   rev.decay = 5
@@ -677,11 +608,6 @@ const play = async () => {
   const hihatStartTime = Tone.Time('24m').toSeconds()
   const snareStartTime = Tone.Time('32m').toSeconds()
 
-  // FOR TESTING
-  // const kickStartTime = Tone.Time('0m').toSeconds()
-  // const hihatStartTime = Tone.Time('0m').toSeconds()
-  // const snareStartTime = Tone.Time('0m').toSeconds()
-
   const kickDuration = Tone.Time(partStartMeasures['A5']).toSeconds() - kickStartTime
   const hihatDuration = Tone.Time(partStartMeasures['A5']).toSeconds() - hihatStartTime
   const snareDuration = Tone.Time(partStartMeasures['A5']).toSeconds() - snareStartTime
@@ -706,9 +632,6 @@ const play = async () => {
 
   // console.log(concatenatedMelodyA)
   // console.log(concatenatedMelodyB)
-  
-  // const generatedMelodyA = await generateMagentaMelody(concatenatedMelodyA, 10)
-  // const generatedMelodyB = await generateMagentaMelody(concatenatedMelodyB, 10)
 
   scheduleMelody(concatenatedMelodyA, partStartMeasures['A1'],  partStartMeasures['B1'] )
   scheduleMelody(concatenatedMelodyB, partStartMeasures['B1'],  partStartMeasures['A2'] )
@@ -721,24 +644,6 @@ const play = async () => {
   scheduleMelody(concatenatedMelodyB, partStartMeasures['B4a'], partStartMeasures['B4b'])
   scheduleMelody(variedMelodyB,       partStartMeasures['B4b'], partStartMeasures['A5'] )
   scheduleMelody(concatenatedMelodyA, partStartMeasures['A5'],  partStartMeasures['END'])
-
-  // Harmony ----------------------------------------
-
-  // const harmonyDurations = ['1m', '2m']
-  // const noteProbability = 0.2
-  // const maxNotes = 2
-
-  // Tone.Transport.scheduleRepeat(time => {
-  //   for (let i = 0; i < maxNotes; i++) {
-  //     if (Math.random() > noteProbability) {
-  //       continue
-  //     }
-  
-  //     const randomPitch = harmonyPitches[Math.floor(Math.random() * harmonyPitches.length)]
-  //     const randomDuration = harmonyDurations[Math.floor(Math.random() * harmonyDurations.length)]
-  //     harmonySynth.triggerAttackRelease(randomPitch, randomDuration, time)
-  //   }
-  // }, '2n', harmonyStartTime, harmonyDuration)
 
   // Bass -------------------------------------------
 
@@ -785,14 +690,14 @@ const play = async () => {
   hihatClosedPatterns[2] = removeOverlappingBeats(varyDrumPattern(hihatClosedPatterns[1], hihatClosedProbabilities, 0.5), hihatOpenPatterns[2])
 
   for (let i = 0; i < 3; i++) {
-    // console.log(`kick ${i+1}:`)
-    // console.log(kickPatterns[i])
-    // console.log(`snare ${i+1}:`)
-    // console.log(snarePatterns[i])
-    // console.log(`hihat open ${i+1}:`)
-    // console.log(hihatOpenPatterns[i])
-    // console.log(`hihat closed ${i+1}:`)
-    // console.log(hihatClosedPatterns[i])
+    console.log(`kick ${i+1}:`)
+    console.log(kickPatterns[i])
+    console.log(`snare ${i+1}:`)
+    console.log(snarePatterns[i])
+    console.log(`hihat open ${i+1}:`)
+    console.log(hihatOpenPatterns[i])
+    console.log(`hihat closed ${i+1}:`)
+    console.log(hihatClosedPatterns[i])
   }
 
   scheduleABACDrumRepeat(kickPatterns, 'C2', drumSampler, kickProbabilities, kickStartTime, kickDuration)
