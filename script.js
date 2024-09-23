@@ -6,14 +6,15 @@ const recorder = new MediaRecorder(recordingDestination.stream)
 const audioChuncks = []
 recorder.ondataavailable = evt => audioChuncks.push(evt.data)
 recorder.onstop = evt => {
-  let blob = new Blob(audioChuncks, { type: 'audio/wav; codecs=opus' })
+  let blob = new Blob(audioChuncks, { type: 'audio/ogg; codecs=opus' })
   const url = URL.createObjectURL(blob)
   const audio = document.getElementById('audioPlayer')
   audio.src = url
   const downloadLink = document.getElementById('downloadLink')
   downloadLink.href = url
-  downloadLink.download = `generated_song_${new Date().toISOString()}.wav`
+  downloadLink.download = `generated_song_${new Date().toISOString()}.ogg`
   audioChuncks.length = 0 // Empty the array for next use
+  console.log(blob.type)
 }
 
 // MASTER ------------
@@ -25,65 +26,38 @@ master.connect(recordingDestination)
 
 // BASS --------------
 const bassVolume = new Tone.Volume().connect(master)
-const bassSynth = new Tone.Synth().connect(bassVolume)
-bassSynth.volume.value = -3
+const bassSynth = new Tone.Synth({
+  oscillator: {
+    type: 'triangle'
+  }
+}).connect(bassVolume)
+bassSynth.volume.value = -1
 
 const bassSynthMeter = new Tone.Meter()
 bassSynth.connect(bassSynthMeter)
 // -------------------
 
-// HARMONY -----------
-const harmonyVolume = new Tone.Volume().connect(master)
-const harmonySynth = new Tone.PolySynth(
-  Tone.FMSynth, {
-    "harmonicity": 1,
-    "modulationIndex": 5,
-    "oscillator": {
-        "type": "sine"
-    },
-    "envelope": {
-        "attack": 0,
-        "decay": 5,
-        "sustain": 0.3,
-        "release": 10
-    },
-    "modulation": {
-        "type": "sine"
-    },
-    "modulationEnvelope": {
-        "attack": 2,
-        "decay": 0.2,
-        "sustain": 0.1,
-        "release": 0.2
-    }
-  }
-).connect(harmonyVolume)
-
-harmonySynth.volume.value = -18
-
-// -------------------
-
 // MELODY ------------
 const melodySynth = new Tone.Sampler({
   urls: {
-    'A2': 'Digibell_A2.mp3',
-    'B2': 'Digibell_B2.mp3',
-    'D3': 'Digibell_D3.mp3',
-    'E3': 'Digibell_E3.mp3',
-    'G3': 'Digibell_G3.mp3',
-    'A3': 'Digibell_A3.mp3',
-    'B3': 'Digibell_B3.mp3',
-    'D4': 'Digibell_D4.mp3',
-    'E4': 'Digibell_E4.mp3',
-    'G4': 'Digibell_G4.mp3',
-    'A4': 'Digibell_A4.mp3',
-    'B4': 'Digibell_B4.mp3',
-    'D5': 'Digibell_D5.mp3',
-    'E5': 'Digibell_E5.mp3',
-    'G5': 'Digibell_G5.mp3',
+    'A2': 'melody_A2.mp3',
+    'B2': 'melody_B2.mp3',
+    'D3': 'melody_D3.mp3',
+    'E3': 'melody_E3.mp3',
+    'G3': 'melody_G3.mp3',
+    'A3': 'melody_A3.mp3',
+    'B3': 'melody_B3.mp3',
+    'D4': 'melody_D4.mp3',
+    'E4': 'melody_E4.mp3',
+    'G4': 'melody_G4.mp3',
+    'A4': 'melody_A4.mp3',
+    'B4': 'melody_B4.mp3',
+    'D5': 'melody_D5.mp3',
+    'E5': 'melody_E5.mp3',
+    'G5': 'melody_G5.mp3',
   },
   release: 1,
-	baseUrl: './Digibell/',
+	baseUrl: './melody/',
 })
 melodySynth.volume.value = -17
 
@@ -108,7 +82,7 @@ const drumSampler = new Tone.Sampler({
 	baseUrl: './drs/',
 }).connect(master)
 
-drumSampler.volume.value = -8
+drumSampler.volume.value = -7
 
 const drumMeter = new Tone.Meter()
 drumSampler.connect(drumMeter)
@@ -116,9 +90,7 @@ drumSampler.connect(drumMeter)
 
 // REVERB ------------
 const rev = new Tone.Reverb(5).connect(master)
-const harmonyRev = new Tone.Reverb(10).connect(master)
 melodySynth.connect(rev)
-harmonySynth.connect(harmonyRev)
 const drumRevSend = new Tone.Volume(-18).connect(rev)
 drumSampler.connect(drumRevSend)
 // -------------------
@@ -161,16 +133,6 @@ const melodyTimeValues = [
 ]
 
 const bassPitches = ['A1', 'B1', 'C2', 'E2', 'G2']
-
-const harmonyPitches = [
-  'E3',
-  'G3',
-  'B3',
-  'D4',
-  'E4',
-  'G4',
-  'B4',
-]
 
 const kickProbabilities = {
   probabilityArray: [
@@ -601,9 +563,6 @@ const play = async () => {
   const bassStartTime = Tone.Time('8m').toSeconds()
   const bassDuration = Tone.Time(partStartMeasures['A5']).toSeconds() - bassStartTime
 
-  const harmonyStartTime = Tone.Time(partStartMeasures['A3']).toSeconds()
-  const harmonyDuration = Tone.Time(partStartMeasures['A5']).toSeconds() - harmonyStartTime
-
   const kickStartTime = Tone.Time('16m').toSeconds()
   const hihatStartTime = Tone.Time('24m').toSeconds()
   const snareStartTime = Tone.Time('32m').toSeconds()
@@ -630,8 +589,14 @@ const play = async () => {
   const variedMelodyA = varyMelody(concatenatedMelodyA, melodyPitches)
   const variedMelodyB = varyMelody(concatenatedMelodyB, melodyPitches)
 
-  // console.log(concatenatedMelodyA)
-  // console.log(concatenatedMelodyB)
+  console.log('melody A')
+  console.log(concatenatedMelodyA)
+  console.log('melody B')
+  console.log(concatenatedMelodyB)
+  console.log('varied melody A')
+  console.log(variedMelodyA)
+  console.log('varied melody B')
+  console.log(variedMelodyB)
 
   scheduleMelody(concatenatedMelodyA, partStartMeasures['A1'],  partStartMeasures['B1'] )
   scheduleMelody(concatenatedMelodyB, partStartMeasures['B1'],  partStartMeasures['A2'] )
@@ -649,8 +614,8 @@ const play = async () => {
 
   const bassNotes = shuffle(bassPitches)
 
-  // console.log("bass")
-  // console.log(bassNotes)
+  console.log('bass')
+  console.log(bassNotes)
   
   Tone.Transport.scheduleRepeat((time) => {
     bassSynth.triggerAttackRelease(bassNotes[0], '1m', time)
@@ -740,7 +705,7 @@ const play = async () => {
   Tone.Transport.start()
 }
 
-const stop = () => {
+const stop = async () => {
   toggleMute()
   Tone.Transport.stop()
   Tone.Transport.cancel()
