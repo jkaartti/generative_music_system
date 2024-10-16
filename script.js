@@ -322,7 +322,7 @@ const randomPitchOffset = () => {
 }
 
 const randomFraseLength = () => {
-  return Math.floor(Math.random() * 5) + 3 // [3, 4, 5, 6, 7]
+  return Math.floor(Math.random() * 5) + 1 // [1, 2, 3, 4, 5]
 }
 
 const varyMelodyRhytm = (melody) => {
@@ -357,8 +357,8 @@ const varyMelodyRhytm = (melody) => {
     variedMelody.push(newNote)
   })
 
-  // Filter out notes that exceed the four bars
-  const filteredVariedMelody = variedMelody.filter(n => Tone.Time(n.startTime) < Tone.Time('4:0:0'))
+  // Filter out notes that exceed the bar
+  const filteredVariedMelody = variedMelody.filter(n => Tone.Time(n.startTime) < Tone.Time('1:0:0'))
 
   return filteredVariedMelody
 }
@@ -586,28 +586,38 @@ const play = async () => {
   const concatenatedMelodyA = concatenateToABACMelody(melodyA)
   const concatenatedMelodyB = concatenateToABACMelody(melodyB)
 
-  const variedMelodyA = varyMelody(concatenatedMelodyA, melodyPitches)
-  const variedMelodyB = varyMelody(concatenatedMelodyB, melodyPitches)
+  const variedMelodyA = []
+  const variedMelodyB = []
+
+  for (let i = 0; i < melodyA.length; i++) {
+    variedMelodyA[i] = varyMelody(randomElement(melodyA), melodyPitches)
+    variedMelodyB[i] = varyMelody(randomElement(melodyB), melodyPitches)
+  }
+
+  const concatenatedVariedMelodyA = concatenateToABACMelody(variedMelodyA)
+  const concatenatedVariedMelodyB = concatenateToABACMelody(variedMelodyB)
+  // const variedMelodyA = varyMelody(concatenatedMelodyA, melodyPitches)
+  // const variedMelodyB = varyMelody(concatenatedMelodyB, melodyPitches)
 
   console.log('melody A')
   console.log(concatenatedMelodyA)
   console.log('melody B')
   console.log(concatenatedMelodyB)
   console.log('varied melody A')
-  console.log(variedMelodyA)
+  console.log(concatenatedVariedMelodyA)
   console.log('varied melody B')
-  console.log(variedMelodyB)
+  console.log(concatenatedVariedMelodyB)
 
   scheduleMelody(concatenatedMelodyA, partStartMeasures['A1'],  partStartMeasures['B1'] )
   scheduleMelody(concatenatedMelodyB, partStartMeasures['B1'],  partStartMeasures['A2'] )
   scheduleMelody(concatenatedMelodyA, partStartMeasures['A2'],  partStartMeasures['B2'] )
   scheduleMelody(concatenatedMelodyB, partStartMeasures['B2'],  partStartMeasures['A3'] )
-  scheduleMelody(variedMelodyA,       partStartMeasures['A3'],  partStartMeasures['B3'] )
-  scheduleMelody(variedMelodyB,       partStartMeasures['B3'],  partStartMeasures['A4a'])
+  scheduleMelody(concatenatedVariedMelodyA,       partStartMeasures['A3'],  partStartMeasures['B3'] )
+  scheduleMelody(concatenatedVariedMelodyB,       partStartMeasures['B3'],  partStartMeasures['A4a'])
   scheduleMelody(concatenatedMelodyA, partStartMeasures['A4a'], partStartMeasures['A4b'])
-  scheduleMelody(variedMelodyA,       partStartMeasures['A4b'], partStartMeasures['B4a'])
+  scheduleMelody(concatenatedVariedMelodyA,       partStartMeasures['A4b'], partStartMeasures['B4a'])
   scheduleMelody(concatenatedMelodyB, partStartMeasures['B4a'], partStartMeasures['B4b'])
-  scheduleMelody(variedMelodyB,       partStartMeasures['B4b'], partStartMeasures['A5'] )
+  scheduleMelody(concatenatedVariedMelodyB,       partStartMeasures['B4b'], partStartMeasures['A5'] )
   scheduleMelody(concatenatedMelodyA, partStartMeasures['A5'],  partStartMeasures['END'])
 
   // Bass -------------------------------------------
